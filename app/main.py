@@ -1,8 +1,33 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.infrastructure.mongodb import create_mongodb_client, get_database
 from app.settings import settings
 
-app = FastAPI(title="Elegan API", version="1.0.0", description="Backend central de Elegan.")
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    mongo_client = create_mongodb_client()
+    application.state.mongodb_client = mongo_client
+    application.state.mongodb = (
+        get_database(mongo_client) if mongo_client is not None else None
+    )
+
+    try:
+        yield
+    finally:
+        if mongo_client is not None:
+            mongo_client.close()
+
+
+app = FastAPI(
+    title="Elegan API",
+    version="1.0.0",
+    description="Backend central de Elegan.",
+    lifespan=lifespan,
+)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -13,9 +38,11 @@ if settings.cors_origins:
         allow_headers=["Authorization", "Content-Type"],
     )
 
+
 @app.get("/", tags=["Sistema"])
 def root():
     return {"service": "elegan-backend", "status": "running"}
+
 
 @app.get("/health", tags=["Sistema"])
 def health():
