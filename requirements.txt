@@ -7,3 +7,4 @@ google-cloud-storage>=3,<4
 PyJWT>=2.10,<3
 bcrypt>=4.2,<6
 google-auth>=2.38,<3
+python-multipart>=0.0.20,<1
