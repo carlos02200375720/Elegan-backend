@@ -1,11 +1,11 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, StrictInt
 
 
 class CarritoAgregar(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    productId: str = Field(min_length=1)
-    quantity: int = Field(default=1, ge=1, le=99)
+    productId: str
+    quantity: StrictInt = 1
     selectedSize: str | None = None
     selectedColor: str | None = None
 
@@ -13,4 +13,4 @@ class CarritoAgregar(BaseModel):
 class CarritoActualizar(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    quantity: int = Field(ge=1, le=99)
+    quantity: StrictInt
