@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pymongo import DESCENDING
 
 from app.configuracion import settings
 from app.infraestructura.mongodb import create_mongodb_client, get_database
+from app.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
 from app.rutas.autenticacion import router_admin, router_movil
 from app.rutas.productos import router_admin_productos, router_movil_productos
 
@@ -16,6 +18,10 @@ async def lifespan(application: FastAPI):
     application.state.mongodb = (
         get_database(mongo_client) if mongo_client is not None else None
     )
+    if application.state.mongodb is not None:
+        anuncios = application.state.mongodb["announcements"]
+        anuncios.create_index("isActive")
+        anuncios.create_index([("createdAt", DESCENDING)])
     try:
         yield
     finally:
@@ -25,7 +31,7 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(
     title="Elegan API",
-    version="1.2.0",
+    version="1.3.0",
     description="Backend central de Elegan.",
     lifespan=lifespan,
 )
@@ -43,6 +49,8 @@ app.include_router(router_movil)
 app.include_router(router_admin)
 app.include_router(router_movil_productos)
 app.include_router(router_admin_productos)
+app.include_router(router_movil_anuncios)
+app.include_router(router_admin_anuncios)
 
 
 @app.get("/", tags=["Sistema"])
