@@ -3,32 +3,74 @@ name: Deploy to Cloud Run
 on:
   push:
     branches:
-      - main  # Si tu rama se llama master, cambia 'main' por 'master'
+      - main
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: elegan-backend
+  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/elegan-backend:${{ github.sha }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - name: Descargar codigo del repositorio
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Autenticar con Google Cloud
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Configurar SDK de Google Cloud
+      - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Desplegar a Cloud Run
+      - name: Validate required configuration
+        shell: bash
         run: |
-          gcloud run deploy $SERVICE_NAME \
-            --source . \
-            --region $REGION \
-            --platform managed \
-            --allow-unauthenticated
+          set -euo pipefail
+          test -n "$PROJECT_ID" || { echo "::error::Falta el secreto GCP_PROJECT_ID"; exit 1; }
+          gcloud config set project "$PROJECT_ID"
+
+      - name: Build and publish container image
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud builds submit . \
+            --tag "$IMAGE" \
+            --project "$PROJECT_ID" \
+            --timeout=1200s
+
+      - name: Deploy image to Cloud Run (retry temporary 503)
+        shell: bash
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            echo "Intento de despliegue $attempt de 5"
+            output_file="$(mktemp)"
+            if gcloud run deploy "$SERVICE_NAME" \
+              --image "$IMAGE" \
+              --region "$REGION" \
+              --platform managed \
+              --allow-unauthenticated \
+              --project "$PROJECT_ID" \
+              --quiet 2>&1 | tee "$output_file"; then
+              rm -f "$output_file"
+              exit 0
+            fi
+            status=${PIPESTATUS[0]}
+            if grep -Eqi '503|UNAVAILABLE|service is currently unavailable' "$output_file" && [ "$attempt" -lt 5 ]; then
+              delay=$((attempt * 20))
+              echo "Cloud Run devolvió un error temporal 503. Reintentando en ${delay}s..."
+              rm -f "$output_file"
+              sleep "$delay"
+              continue
+            fi
+            rm -f "$output_file"
+            exit "$status"
+          done
+          echo "::error::Cloud Run siguió devolviendo 503 después de 5 intentos."
+          exit 1
