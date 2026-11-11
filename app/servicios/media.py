@@ -81,3 +81,87 @@ def guardar_multimedia(
         raise HTTPException(status_code=502, detail="MEDIA_STORAGE_ERROR") from error
     except Exception as error:
         raise HTTPException(status_code=500, detail="MEDIA_UPLOAD_FAILED") from error
+
+
+# Campos multimedia que pueden contener URLs u objectName de GCS.
+_CAMPOS_MULTIMEDIA = {
+    "imageUrl", "images", "videoUrl", "videoPoster", "url",
+    "mediaUrl", "mediaUrls", "objectName", "media", "files",
+}
+
+
+def _referencias_multimedia(documento: dict) -> set[str]:
+    referencias: set[str] = set()
+
+    def recorrer(valor, clave: str = "") -> None:
+        if isinstance(valor, dict):
+            for nombre, contenido in valor.items():
+                if nombre in _CAMPOS_MULTIMEDIA:
+                    recorrer(contenido, nombre)
+                elif isinstance(contenido, (dict, list)):
+                    recorrer(contenido, nombre)
+        elif isinstance(valor, list):
+            for elemento in valor:
+                recorrer(elemento, clave)
+        elif isinstance(valor, str) and clave in _CAMPOS_MULTIMEDIA:
+            texto = valor.strip()
+            if texto.startswith("https://storage.googleapis.com/"):
+                referencias.add(texto.split("?", 1)[0])
+                object_name = _object_name_desde_url(texto)
+                if object_name:
+                    referencias.add("object:" + object_name)
+            elif clave == "objectName" and texto:
+                referencias.add("object:" + texto)
+
+    recorrer(documento)
+    return referencias
+
+
+def _object_name_desde_url(url: str) -> str | None:
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(url)
+    prefijo = f"/{settings.gcs_bucket_name}/"
+    if parsed.netloc != "storage.googleapis.com" or not parsed.path.startswith(prefijo):
+        return None
+    nombre = unquote(parsed.path[len(prefijo):])
+    return nombre if nombre and not nombre.startswith("/") else None
+
+
+def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
+    """Elimina de GCS solo medios propios del bucket que ya no usa ningún documento."""
+    candidatos: set[str] = set()
+    for documento in documentos:
+        candidatos.update(_referencias_multimedia(documento))
+
+    if not candidatos:
+        return
+
+    referencias_actuales: set[str] = set()
+    # Se revisan todas las colecciones para proteger medios compartidos entre
+    # productos, anuncios, perfiles, pedidos u otros documentos de la aplicación.
+    for nombre_coleccion in db.list_collection_names():
+        for documento in db[nombre_coleccion].find({}):
+            referencias_actuales.update(_referencias_multimedia(documento))
+
+    obsoletos = candidatos - referencias_actuales
+    nombres_objeto = {
+        referencia[len("object:"):] if referencia.startswith("object:") else
+        (_object_name_desde_url(referencia) or "")
+        for referencia in obsoletos
+    }
+    nombres_objeto.discard("")
+    if not nombres_objeto:
+        return
+
+    try:
+        bucket = storage.Client().bucket(settings.gcs_bucket_name)
+        for nombre_objeto in nombres_objeto:
+            # Los uploads de esta API se guardan bajo estos prefijos.
+            if not (nombre_objeto.startswith("movil/") or nombre_objeto.startswith("admin/")):
+                continue
+            bucket.blob(nombre_objeto).delete()
+    except GoogleAPIError as error:
+        raise HTTPException(
+            status_code=502, detail="MEDIA_CLEANUP_FAILED"
+        ) from error
