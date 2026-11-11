@@ -4,7 +4,7 @@ from uuid import uuid4
 from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
-from google.api_core.exceptions import GoogleAPIError
+from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.cloud import storage
 
 from app.configuracion import settings
@@ -160,7 +160,11 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
             # Los uploads de esta API se guardan bajo estos prefijos.
             if not (nombre_objeto.startswith("movil/") or nombre_objeto.startswith("admin/")):
                 continue
-            bucket.blob(nombre_objeto).delete()
+            try:
+                bucket.blob(nombre_objeto).delete()
+            except NotFound:
+                # El objeto ya no existe; la limpieza ya está satisfecha.
+                continue
     except GoogleAPIError as error:
         raise HTTPException(
             status_code=502, detail="MEDIA_CLEANUP_FAILED"
