@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     mongodb_uri: str = ""
     mongodb_database: str = "elegan"
     gcs_bucket_name: str = "elegan-bucket"
+    jwt_secret: str = ""
+    google_web_client_id: str = ""
+    super_admin_email: str = ""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()
