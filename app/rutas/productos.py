@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
 from app.esquemas.productos import ProductoActualizar, ProductoCrear
 from app.middleware.autorizacion import requerir_administrador
@@ -43,7 +43,8 @@ def obtener_producto_admin(product_id: str, db=Depends(obtener_db)):
 
 @router_admin_productos.post("", status_code=201)
 def crear_producto_admin(datos: ProductoCrear, db=Depends(obtener_db)):
-    return crear_producto(db, datos.model_dump(exclude_unset=True))
+    # Incluye los valores predeterminados definidos por el esquema del producto.
+    return crear_producto(db, datos.model_dump())
 
 
 @router_admin_productos.patch("/{product_id}")
