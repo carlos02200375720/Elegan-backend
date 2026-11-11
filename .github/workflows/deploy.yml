@@ -9,7 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: elegan-backend
-  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/elegan-backend:${{ github.sha }}
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/elegan-backend:${{ github.sha }}
 
 jobs:
   deploy:
@@ -47,7 +47,7 @@ jobs:
       - name: Deploy image to Cloud Run (retry temporary 503)
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           for attempt in 1 2 3 4 5; do
             echo "Intento de despliegue $attempt de 5"
             output_file="$(mktemp)"
@@ -57,11 +57,14 @@ jobs:
               --platform managed \
               --allow-unauthenticated \
               --project "$PROJECT_ID" \
-              --quiet 2>&1 | tee "$output_file"; then
+              --quiet >"$output_file" 2>&1; then
+              cat "$output_file"
               rm -f "$output_file"
               exit 0
+            else
+              status=$?
             fi
-            status=${PIPESTATUS[0]}
+            cat "$output_file"
             if grep -Eqi '503|UNAVAILABLE|service is currently unavailable' "$output_file" && [ "$attempt" -lt 5 ]; then
               delay=$((attempt * 20))
               echo "Cloud Run devolvió un error temporal 503. Reintentando en ${delay}s..."
