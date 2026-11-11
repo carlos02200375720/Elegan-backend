@@ -27,7 +27,13 @@ def obtener_db(request: Request):
 def usuario_actual(authorization: str | None = Header(default=None), db=Depends(obtener_db)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="AUTH_REQUIRED")
-    return verificar_token(authorization[7:].strip(), db)
+    return verificar_token(authorization[7:].strip(), db, "movil")
+
+
+def usuario_actual_admin(authorization: str | None = Header(default=None), db=Depends(obtener_db)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="AUTH_REQUIRED")
+    return verificar_token(authorization[7:].strip(), db, "admin")
 
 
 def respuesta_autenticacion(user: dict, cliente: Literal["movil", "admin"]):
@@ -77,7 +83,7 @@ def login_google_admin(datos: GoogleEntrada, db=Depends(obtener_db)):
 
 
 @router_admin.get("/me")
-def mi_cuenta_admin(user=Depends(usuario_actual)):
+def mi_cuenta_admin(user=Depends(usuario_actual_admin)):
     validar_acceso_admin(user)
     return {"user": usuario_publico(user)}
 

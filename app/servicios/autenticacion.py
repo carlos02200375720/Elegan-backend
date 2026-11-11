@@ -71,7 +71,7 @@ def buscar_usuario(db: Any, user_id: str) -> dict | None:
     return users.find_one({"_id": user_id}) or admins.find_one({"_id": user_id})
 
 
-def verificar_token(token: str, db: Any) -> dict:
+def verificar_token(token: str, db: Any, cliente: str | None = None) -> dict:
     try:
         payload = jwt.decode(
             token,
@@ -85,6 +85,11 @@ def verificar_token(token: str, db: Any) -> dict:
         raise HTTPException(status_code=401, detail="SESSION_EXPIRED")
     except (jwt.InvalidTokenError, HTTPException):
         raise HTTPException(status_code=401, detail="INVALID_SESSION")
+
+    if cliente == "admin" and payload.get("aud") != AUDIENCIA_ADMIN:
+        raise HTTPException(status_code=403, detail="ADMIN_SESSION_REQUIRED")
+    if cliente == "movil" and payload.get("aud") != AUDIENCIA_MOVIL:
+        raise HTTPException(status_code=403, detail="MOBILE_SESSION_REQUIRED")
 
     user = buscar_usuario(db, str(payload["sub"]))
     if not user:

@@ -1,6 +1,6 @@
 from fastapi import Depends
 
-from app.rutas.autenticacion import usuario_actual
+from app.rutas.autenticacion import usuario_actual_admin
 from app.servicios.autenticacion import validar_acceso_admin
 
 
@@ -11,6 +11,6 @@ def requerir_cliente(user=Depends(usuario_actual)):
     return user
 
 
-def requerir_administrador(user=Depends(usuario_actual)):
+def requerir_administrador(user=Depends(usuario_actual_admin)):
     validar_acceso_admin(user)
     return user
