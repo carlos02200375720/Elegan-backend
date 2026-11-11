@@ -45,9 +45,15 @@ jobs:
           docker push "$IMAGE"
 
       - name: Deploy image to Cloud Run (retry temporary 503)
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DATABASE: ${{ vars.MONGODB_DATABASE }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$MONGODB_URI" || { echo "::error::Falta el secreto MONGODB_URI en GitHub Actions"; exit 1; }
+          test -n "$MONGODB_DATABASE" || { echo "::error::Falta la variable MONGODB_DATABASE en GitHub Actions"; exit 1; }
+
           for attempt in 1 2 3 4 5; do
             echo "Intento de despliegue $attempt de 5"
             output_file="$(mktemp)"
@@ -56,6 +62,7 @@ jobs:
               --region "$REGION" \
               --platform managed \
               --allow-unauthenticated \
+              --update-env-vars "^#^MONGODB_URI=${MONGODB_URI}#MONGODB_DATABASE=${MONGODB_DATABASE}" \
               --project "$PROJECT_ID" \
               --quiet >"$output_file" 2>&1; then
               cat "$output_file"
