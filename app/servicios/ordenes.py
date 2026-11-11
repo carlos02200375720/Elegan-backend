@@ -81,3 +81,21 @@ def crear_orden(db: Any, user: dict, datos: dict) -> dict:
     coleccion_ordenes(db).insert_one(orden)
     carrito.delete_many({"userId": user_id})
     return {"id": orden_id}
+
+
+def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
+    coleccion = coleccion_ordenes(db)
+    resultado = coleccion.update_one(
+        {"_id": order_id},
+        {
+            "$set": {
+                "status": status,
+                "updatedAt": datetime.now(timezone.utc),
+            }
+        },
+    )
+    if resultado.matched_count == 0:
+        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+
+    orden = coleccion.find_one({"_id": order_id})
+    return formatear_orden(orden)
