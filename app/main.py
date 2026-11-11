@@ -9,6 +9,8 @@ from app.infraestructura.mongodb import create_mongodb_client, get_database
 from app.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
 from app.rutas.autenticacion import router_admin, router_movil
 from app.rutas.productos import router_admin_productos, router_movil_productos
+from app.rutas.productos_guardados import router_movil_productos_guardados
+from app.servicios.productos_guardados import inicializar_indices_guardadas
 
 
 @asynccontextmanager
@@ -22,6 +24,7 @@ async def lifespan(application: FastAPI):
         anuncios = application.state.mongodb["announcements"]
         anuncios.create_index("isActive")
         anuncios.create_index([("createdAt", DESCENDING)])
+        inicializar_indices_guardadas(application.state.mongodb)
     try:
         yield
     finally:
@@ -51,6 +54,7 @@ app.include_router(router_movil_productos)
 app.include_router(router_admin_productos)
 app.include_router(router_movil_anuncios)
 app.include_router(router_admin_anuncios)
+app.include_router(router_movil_productos_guardados)
 
 
 @app.get("/", tags=["Sistema"])
