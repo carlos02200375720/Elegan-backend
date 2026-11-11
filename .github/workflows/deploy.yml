@@ -39,10 +39,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcloud builds submit . \
-            --tag "$IMAGE" \
-            --project "$PROJECT_ID" \
-            --timeout=1200s
+          test -f Dockerfile || { echo "::error::No existe Dockerfile en la raíz"; exit 1; }
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build --pull -t "$IMAGE" .
+          docker push "$IMAGE"
 
       - name: Deploy image to Cloud Run (retry temporary 503)
         shell: bash
