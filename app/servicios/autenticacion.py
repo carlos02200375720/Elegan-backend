@@ -11,7 +11,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from pymongo.collection import Collection
 
-from app.settings import settings
+from app.configuracion import settings
 
 EMISOR = "elegan-movil-api"
 AUDIENCIA_MOVIL = "elegan-android"

@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.infrastructure.mongodb import create_mongodb_client, get_database
+from app.infraestructura.mongodb import create_mongodb_client, get_database
 from app.rutas.autenticacion import router_admin, router_movil
-from app.settings import settings
+from app.configuracion import settings
 
 
 @asynccontextmanager
@@ -29,10 +29,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-if settings.cors_origins:
+if settings.cors_origins_list:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],

@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 from pymongo.database import Database
 
-from app.settings import settings
+from app.configuracion import settings
 
 
 def create_mongodb_client() -> MongoClient | None:
