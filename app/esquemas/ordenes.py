@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -13,3 +15,15 @@ class OrdenCrear(BaseModel):
         if not value:
             raise ValueError("INVALID_ORDER")
         return value
+
+
+class OrdenActualizarEstado(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal[
+        "confirmado",
+        "en_proceso",
+        "enviado",
+        "entregado",
+        "cancelado",
+    ]
