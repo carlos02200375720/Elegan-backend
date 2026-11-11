@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+
+from app.servicios.media import eliminar_medios_sin_referencias
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_ANUNCIOS = "announcements"
@@ -74,14 +76,22 @@ def actualizar_anuncio(db: Any, anuncio_id: str, datos: dict) -> dict:
 
     datos = {key: value for key, value in datos.items() if value is not None}
     datos["updatedAt"] = datetime.now(timezone.utc)
-    resultado = coleccion_anuncios(db).update_one(
-        {"_id": anuncio_id}, {"$set": datos}
-    )
+    coleccion = coleccion_anuncios(db)
+    anterior = coleccion.find_one({"_id": anuncio_id})
+    if anterior is None:
+        raise HTTPException(status_code=404, detail="ANNOUNCEMENT_NOT_FOUND")
+    resultado = coleccion.update_one({"_id": anuncio_id}, {"$set": datos})
     if not resultado.matched_count:
         raise HTTPException(status_code=404, detail="ANNOUNCEMENT_NOT_FOUND")
+    eliminar_medios_sin_referencias(db, [anterior])
     return {"success": True}
 
 
 def eliminar_anuncio(db: Any, anuncio_id: str) -> dict:
-    coleccion_anuncios(db).delete_one({"_id": anuncio_id})
+    coleccion = coleccion_anuncios(db)
+    anterior = coleccion.find_one({"_id": anuncio_id})
+    if anterior is None:
+        raise HTTPException(status_code=404, detail="ANNOUNCEMENT_NOT_FOUND")
+    coleccion.delete_one({"_id": anuncio_id})
+    eliminar_medios_sin_referencias(db, [anterior])
     return {"success": True}
