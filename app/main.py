@@ -14,6 +14,7 @@ from app.rutas.productos_guardados import router_movil_productos_guardados
 from app.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
 from app.rutas.perfil import router_admin_perfil, router_movil_perfil
 from app.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
+from app.rutas.media import router_admin_media, router_movil_media
 from app.servicios.carrito import inicializar_indices_carrito
 from app.servicios.productos_guardados import inicializar_indices_guardadas
 from app.servicios.ordenes import inicializar_indices_ordenes
@@ -46,7 +47,7 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(
     title="Elegan API",
-    version="1.4.0",
+    version="1.5.0",
     description="Backend central de Elegan.",
     lifespan=lifespan,
 )
@@ -74,6 +75,8 @@ app.include_router(router_movil_perfil)
 app.include_router(router_admin_perfil)
 app.include_router(router_movil_mensajes)
 app.include_router(router_admin_mensajes)
+app.include_router(router_movil_media)
+app.include_router(router_admin_media)
 
 
 @app.get("/", tags=["Sistema"])
