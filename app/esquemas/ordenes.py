@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class OrdenCrear(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    customerName: str = Field(min_length=1, max_length=200)
+    customerName: str = Field(min_length=1)
 
     @field_validator("customerName")
     @classmethod
