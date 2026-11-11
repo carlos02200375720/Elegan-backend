@@ -35,6 +35,23 @@ def listar_mensajes(db: Any, user: dict) -> dict:
     return {"items": [formatear_mensaje(item) for item in mensajes]}
 
 
+def listar_mensajes_admin(db: Any, user_id: str | None = None) -> dict:
+    filtro = {"userId": user_id} if user_id else {}
+    mensajes = (
+        coleccion_mensajes(db)
+        .find(filtro)
+        .sort([("userId", 1), ("createdAt", 1)])
+    )
+    return {"items": [formatear_mensaje(item) for item in mensajes]}
+
+
+def _validar_texto(texto: Any) -> str:
+    valor = str(texto or "").strip()
+    if not valor or len(valor) > 4000:
+        raise HTTPException(status_code=400, detail="INVALID_MESSAGE")
+    return valor
+
+
 def _respuesta_automatica(texto: str) -> str:
     normalizado = texto.lower()
     if "envio" in normalizado or "entrega" in normalizado:
@@ -64,10 +81,7 @@ def _respuesta_automatica(texto: str) -> str:
 
 
 def crear_mensaje(db: Any, user: dict, datos: dict) -> dict:
-    texto = str(datos.get("text") or "").strip()
-    if not texto or len(texto) > 4000:
-        raise HTTPException(status_code=400, detail="INVALID_MESSAGE")
-
+    texto = _validar_texto(datos.get("text"))
     user_id = str(user["_id"])
     ahora = datetime.now(timezone.utc)
     mensaje_id = str(uuid.uuid4())
@@ -91,4 +105,25 @@ def crear_mensaje(db: Any, user: dict, datos: dict) -> dict:
         "createdAt": ahora + timedelta(milliseconds=1),
     }
     coleccion.insert_one(respuesta)
+    return {"id": mensaje_id}
+
+
+def responder_mensaje_admin(
+    db: Any, user_id: str, admin: dict, datos: dict
+) -> dict:
+    texto = _validar_texto(datos.get("text"))
+    # Evita crear conversaciones para identificadores inexistentes.
+    if coleccion_mensajes(db).find_one({"userId": user_id}) is None:
+        raise HTTPException(status_code=404, detail="CONVERSATION_NOT_FOUND")
+
+    mensaje_id = str(uuid.uuid4())
+    mensaje = {
+        "_id": mensaje_id,
+        "userId": user_id,
+        "sender": "support",
+        "senderName": str(admin.get("name") or "Elegan Concierge"),
+        "text": texto,
+        "createdAt": datetime.now(timezone.utc),
+    }
+    coleccion_mensajes(db).insert_one(mensaje)
     return {"id": mensaje_id}
