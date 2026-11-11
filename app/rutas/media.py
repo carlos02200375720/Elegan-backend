@@ -27,7 +27,7 @@ def subir_multimedia_movil(
     nombre: str | None = Form(default=None, alias="name"),
     _user=Depends(_verificar_admin_movil),
 ):
-    return guardar_multimedia(archivo, nombre)
+    return guardar_multimedia(archivo, nombre, "movil")
 
 
 @router_admin_media.post("", status_code=201)
@@ -35,4 +35,4 @@ def subir_multimedia_admin(
     archivo: UploadFile = File(..., alias="file"),
     nombre: str | None = Form(default=None, alias="name"),
 ):
-    return guardar_multimedia(archivo, nombre)
+    return guardar_multimedia(archivo, nombre, "admin")
