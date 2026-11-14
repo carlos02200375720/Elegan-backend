@@ -60,6 +60,7 @@ jobs:
             if gcloud run deploy "$SERVICE_NAME" \
               --image "$IMAGE" \
               --region "$REGION" \
+              --service-account "elegan-cuenta-servicio@carlos-garcia-509521.iam.gserviceaccount.com" \
               --platform managed \
               --allow-unauthenticated \
               --update-env-vars "^#^MONGODB_URI=${MONGODB_URI}#MONGODB_DATABASE=${MONGODB_DATABASE}" \
