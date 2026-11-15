@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pymongo import DESCENDING
 
 from backend.configuracion import settings
-from backend.infraestructura.mongodb import create_mongodb_client, get_database
+from backend.conexión.mongodb import create_mongodb_client, get_database
 from backend.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
 from backend.rutas.carrito import router_movil_carrito
 from backend.rutas.autenticacion import router_admin, router_movil
