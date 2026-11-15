@@ -24,6 +24,12 @@ def inicializar_indices_ordenes(db: Any) -> None:
     coleccion.create_index(
         [("createdAt", DESCENDING)], name="idx_orders_created_at"
     )
+    coleccion.create_index(
+        [("paypalOrderId", 1)],
+        name="idx_orders_paypal_order_id",
+        unique=True,
+        sparse=True,
+    )
 
 
 def formatear_orden(documento: dict) -> dict:
@@ -38,53 +44,14 @@ def listar_ordenes(db: Any, user: dict, solo_usuario: bool) -> dict:
     return {"items": [formatear_orden(fila) for fila in filas]}
 
 
-def crear_orden(db: Any, user: dict, datos: dict) -> dict:
-    nombre = str(datos.get("customerName") or "").strip()
-    if not nombre:
-        raise HTTPException(status_code=400, detail="INVALID_ORDER")
-
-    user_id = str(user["_id"])
-    carrito = db[NOMBRE_COLECCION_CARRITO]
-    items = list(carrito.find({"userId": user_id}))
-    if not items:
-        raise HTTPException(status_code=400, detail="CART_EMPTY")
-
-    total = sum(
-        (float(item.get("price") or 0) * int(item.get("quantity") or 0))
-        for item in items
-    )
-    cantidad = sum(int(item.get("quantity") or 0) for item in items)
-    resumen = ", ".join(
-        f"{item.get('name', '')} x{item.get('quantity', 0)}" for item in items
-    )
-
-    # Igual que cleanObject del backend anterior: el cliente no puede fijar
-    # identificador, propietario, rol ni marcas de tiempo del pedido.
-    datos_limpios = dict(datos)
-    for campo in ("_id", "userId", "role", "createdAt", "updatedAt",
-                  "total", "itemCount", "itemsSummary", "status"):
-        datos_limpios.pop(campo, None)
-
-    orden_id = str(uuid.uuid4())
-    orden = {
-        **datos_limpios,
-        "customerName": nombre,
-        "total": total,
-        "itemCount": cantidad,
-        "itemsSummary": resumen,
-        "_id": orden_id,
-        "userId": user_id,
-        "status": "confirmado",
-        "createdAt": datetime.now(timezone.utc),
-    }
-
-    coleccion_ordenes(db).insert_one(orden)
-    carrito.delete_many({"userId": user_id})
-    return {"id": orden_id}
-
-
 def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
     coleccion = coleccion_ordenes(db)
+    existente = coleccion.find_one({"_id": order_id})
+    if existente is None:
+        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+    if existente.get("paymentStatus") == "pending":
+        raise HTTPException(status_code=409, detail="ORDER_PAYMENT_PENDING")
+
     resultado = coleccion.update_one(
         {"_id": order_id},
         {
