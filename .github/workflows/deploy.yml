@@ -48,11 +48,13 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGODB_DATABASE: ${{ vars.MONGODB_DATABASE }}
+          GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$MONGODB_URI" || { echo "::error::Falta el secreto MONGODB_URI en GitHub Actions"; exit 1; }
           test -n "$MONGODB_DATABASE" || { echo "::error::Falta la variable MONGODB_DATABASE en GitHub Actions"; exit 1; }
+          test -n "$GCS_BUCKET_NAME" || { echo "::error::Falta la variable GCS_BUCKET_NAME en GitHub Actions"; exit 1; }
 
           for attempt in 1 2 3 4 5; do
             echo "Intento de despliegue $attempt de 5"
@@ -63,7 +65,7 @@ jobs:
               --service-account "elegan-cuenta-servicio@carlos-garcia-509521.iam.gserviceaccount.com" \
               --platform managed \
               --allow-unauthenticated \
-              --update-env-vars "^#^MONGODB_URI=${MONGODB_URI}#MONGODB_DATABASE=${MONGODB_DATABASE}" \
+              --update-env-vars "^#^MONGODB_URI=${MONGODB_URI}#MONGODB_DATABASE=${MONGODB_DATABASE}#GCS_BUCKET_NAME=${GCS_BUCKET_NAME}" \
               --project "$PROJECT_ID" \
               --quiet >"$output_file" 2>&1; then
               cat "$output_file"
