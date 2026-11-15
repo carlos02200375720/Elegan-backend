@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from backend.servicios.media import eliminar_medios_sin_referencias
+from backend.logica.media import eliminar_medios_sin_referencias
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_ANUNCIOS = "announcements"
