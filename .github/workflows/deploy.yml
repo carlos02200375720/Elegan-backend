@@ -44,6 +44,21 @@ jobs:
           docker build --pull -t "$IMAGE" .
           docker push "$IMAGE"
 
+      - name: Verify backend imports before deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n "backend\\.servicios" backend --include="*.py"; then
+            echo "::error::Quedan imports antiguos backend.servicios. Deben apuntar a backend.logica."
+            exit 1
+          fi
+          docker run --rm \
+            -e MONGODB_URI="mongodb://127.0.0.1:27017" \
+            -e MONGODB_DATABASE="elegan_db" \
+            -e GCS_BUCKET_NAME="elegan-bucket" \
+            "$IMAGE" \
+            python -c "import backend.main; print('Importaciones del backend correctas')"
+
       - name: Deploy image to Cloud Run (retry temporary 503)
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
