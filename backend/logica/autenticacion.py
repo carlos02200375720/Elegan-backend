@@ -54,12 +54,12 @@ def usuario_publico(user: dict) -> dict:
         "id": str(user.get("_id", "")),
         "email": user.get("email"),
         "name": user.get("name", ""),
-        "photoUrl": user.get("photoUrl", ""),
         "role": user.get("role", "customer"),
         "provider": user.get("provider", "password"),
         "createdAt": user.get("createdAt"),
     }
     if result["role"] in ("admin", "superadmin"):
+        result["photoUrl"] = user.get("photoUrl", "")
         result["permissions"] = user.get("permissions", ["all"])
     else:
         result["sharedPublications"] = user.get("sharedPublications", [])
@@ -143,7 +143,6 @@ def registrar_cliente(db: Any, email: str, password: str, name: str, cliente: st
         "email": email,
         "name": name,
         "passwordHash": hash_contrasena(password),
-        "photoUrl": "",
         "role": "customer",
         "provider": "password",
         "sharedPublications": [],
@@ -237,7 +236,6 @@ def iniciar_sesion_google(db: Any, id_token: str, cliente: str) -> dict:
             "_id": str(uuid.uuid4()),
             "email": email,
             "name": payload.get("name", ""),
-            "photoUrl": payload.get("picture", ""),
             "role": "customer",
             "provider": "google",
             "sharedPublications": [],
