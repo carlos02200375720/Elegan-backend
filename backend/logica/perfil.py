@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
-from pymongo.collection import Collection
 
 CAMPOS_PROTEGIDOS = {"_id", "userId", "role", "createdAt", "updatedAt"}
 CAMPOS_PERFIL_CLIENTE = {"name", "email", "phone", "address", "city"}
@@ -44,7 +43,6 @@ def actualizar_perfil(db: Any, user: dict, datos: dict) -> dict:
         {
             "$set": {
                 **datos_limpios,
-                "userId": user_id,
                 "updatedAt": ahora,
             },
             "$setOnInsert": {"createdAt": ahora},
