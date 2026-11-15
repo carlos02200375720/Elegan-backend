@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     mongodb_uri: str = ""
     mongodb_database: str = "elegan"
-    gcs_bucket_name: str = "elegan-bucket"
+    gcs_bucket_name: str = ""
     jwt_secret: str = ""
     google_web_client_id: str = ""
     super_admin_email: str = ""
