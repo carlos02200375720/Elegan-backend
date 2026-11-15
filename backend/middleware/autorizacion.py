@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException
 
 from backend.rutas.autenticacion import usuario_actual, usuario_actual_admin
-from backend.servicios.autenticacion import validar_acceso_admin
+from backend.logica.autenticacion import validar_acceso_admin
 
 
 def requerir_cliente(user=Depends(usuario_actual)):
