@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class PerfilActualizar(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
