@@ -24,7 +24,8 @@ def formatear_perfil(documento: dict | None, user: dict) -> dict:
 
 def obtener_perfil(db: Any, user: dict) -> dict:
     documento = db["super-admins"].find_one(
-        {"_id": str(user["_id"])}
+        {"_id": str(user["_id"])},
+        {"passwordHash": 0, "googleSub": 0},
     )
     return {"item": formatear_perfil(documento, user)}
 
