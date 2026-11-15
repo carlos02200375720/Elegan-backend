@@ -16,11 +16,11 @@ from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
 from backend.rutas.perfil import router_admin_perfil, router_movil_perfil
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
 from backend.rutas.media import router_admin_media, router_movil_media
-from backend.servicios.carrito import inicializar_indices_carrito
-from backend.servicios.productos_guardados import inicializar_indices_guardadas
-from backend.servicios.ordenes import inicializar_indices_ordenes
-from backend.servicios.perfil import inicializar_indices_perfiles
-from backend.servicios.mensajes import inicializar_indices_mensajes
+from backend.logica.carrito import inicializar_indices_carrito
+from backend.logica.productos_guardados import inicializar_indices_guardadas
+from backend.logica.ordenes import inicializar_indices_ordenes
+from backend.logica.perfil import inicializar_indices_perfiles
+from backend.logica.mensajes import inicializar_indices_mensajes
 
 logger = logging.getLogger("elegan")
 
