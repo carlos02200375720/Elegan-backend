@@ -27,55 +27,47 @@ logger = logging.getLogger("elegan")
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    mongo_client = None
-    application.state.mongodb_client = None
-    application.state.mongodb = None
-
-    # Cloud Run debe poder iniciar HTTP aunque MongoDB tenga una interrupción
-    # temporal. PyMongo reintenta la selección de servidor en las operaciones
-    # posteriores; los errores quedan registrados para diagnóstico.
-    try:
-        mongo_client = create_mongodb_client()
-        application.state.mongodb_client = mongo_client
-
-        if mongo_client is not None:
-            database = get_database(mongo_client)
-            application.state.mongodb = database
-
-            try:
-                mongo_client.admin.command("ping")
-                anuncios = database["announcements"]
-                anuncios.create_index("isActive")
-                anuncios.create_index([("createdAt", DESCENDING)])
-                inicializar_indices_guardadas(database)
-                inicializar_indices_carrito(database)
-                inicializar_indices_ordenes(database)
-                inicializar_indices_perfiles(database)
-                inicializar_indices_mensajes(database)
-                logger.info("MongoDB conectado e índices inicializados.")
-            except Exception:
-                logger.exception(
-                    "MongoDB no está disponible o no se pudieron inicializar "
-                    "los índices. FastAPI continuará arrancando; las operaciones "
-                    "que necesiten MongoDB podrían fallar hasta recuperar la conexión."
-                )
-        else:
-            logger.warning(
-                "MONGODB_URI no está configurada. La API arrancará sin MongoDB."
-            )
-    except Exception:
-        logger.exception(
-            "No se pudo crear o configurar el cliente MongoDB. "
-            "FastAPI continuará arrancando sin conexión a la base de datos."
+    if not settings.mongodb_uri:
+        raise RuntimeError(
+            "MONGODB_URI no está configurada. Se cancela el arranque del servicio."
         )
-        application.state.mongodb_client = None
-        application.state.mongodb = None
+
+    mongo_client = create_mongodb_client()
+    if mongo_client is None:
+        raise RuntimeError(
+            "No se pudo crear el cliente MongoDB. Se cancela el arranque del servicio."
+        )
+
+    try:
+        database = get_database(mongo_client)
+        mongo_client.admin.command("ping")
+
+        anuncios = database["announcements"]
+        anuncios.create_index("isActive")
+        anuncios.create_index([("createdAt", DESCENDING)])
+        inicializar_indices_guardadas(database)
+        inicializar_indices_carrito(database)
+        inicializar_indices_ordenes(database)
+        inicializar_indices_perfiles(database)
+        inicializar_indices_mensajes(database)
+
+        application.state.mongodb_client = mongo_client
+        application.state.mongodb = database
+        logger.info("MongoDB conectado y todos los índices inicializados.")
+    except Exception as exc:
+        mongo_client.close()
+        logger.exception(
+            "No se pudo conectar a MongoDB o inicializar sus índices. "
+            "Se cancela el arranque para impedir un despliegue sin base de datos."
+        )
+        raise RuntimeError(
+            "MongoDB no está disponible o la inicialización de índices falló."
+        ) from exc
 
     try:
         yield
     finally:
-        if mongo_client is not None:
-            mongo_client.close()
+        mongo_client.close()
 
 
 app = FastAPI(
