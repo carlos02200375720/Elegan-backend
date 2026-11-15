@@ -4,21 +4,8 @@ from typing import Any
 from fastapi import HTTPException
 from pymongo.collection import Collection
 
-NOMBRE_COLECCION_PERFILES = "profiles"
 CAMPOS_PROTEGIDOS = {"_id", "userId", "role", "createdAt", "updatedAt"}
 CAMPOS_PERFIL_CLIENTE = {"name", "email", "phone", "address", "city"}
-
-
-def coleccion_perfiles(db: Any) -> Collection:
-    return db[NOMBRE_COLECCION_PERFILES]
-
-
-def inicializar_indices_perfiles(db: Any) -> None:
-    coleccion_perfiles(db).create_index(
-        [("userId", 1)],
-        unique=True,
-        name="idx_profiles_user_id_unique",
-    )
 
 
 def formatear_perfil(documento: dict | None, user: dict) -> dict:
@@ -37,8 +24,8 @@ def formatear_perfil(documento: dict | None, user: dict) -> dict:
 
 
 def obtener_perfil(db: Any, user: dict) -> dict:
-    documento = coleccion_perfiles(db).find_one(
-        {"userId": str(user["_id"])}
+    documento = db["super-admins"].find_one(
+        {"_id": str(user["_id"])}
     )
     return {"item": formatear_perfil(documento, user)}
 
@@ -52,8 +39,8 @@ def actualizar_perfil(db: Any, user: dict, datos: dict) -> dict:
     }
     user_id = str(user["_id"])
 
-    coleccion_perfiles(db).update_one(
-        {"userId": user_id},
+    db["super-admins"].update_one(
+        {"_id": user_id},
         {
             "$set": {
                 **datos_limpios,
