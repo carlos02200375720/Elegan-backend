@@ -2,8 +2,8 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from app.esquemas.autenticacion import GoogleEntrada, InicioSesionEntrada, RegistroEntrada
-from app.servicios.autenticacion import (
+from backend.esquemas.autenticacion import GoogleEntrada, InicioSesionEntrada, RegistroEntrada
+from backend.servicios.autenticacion import (
     crear_token,
     iniciar_sesion,
     iniciar_sesion_google,

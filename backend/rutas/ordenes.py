@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 
-from app.esquemas.ordenes import OrdenActualizarEstado, OrdenCrear
-from app.middleware.autorizacion import requerir_administrador
-from app.rutas.autenticacion import obtener_db, usuario_actual
-from app.servicios.ordenes import (
+from backend.esquemas.ordenes import OrdenActualizarEstado, OrdenCrear
+from backend.middleware.autorizacion import requerir_administrador
+from backend.rutas.autenticacion import obtener_db, usuario_actual
+from backend.servicios.ordenes import (
     actualizar_estado_orden,
     crear_orden,
     listar_ordenes,

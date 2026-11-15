@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 
-from app.esquemas.perfil import PerfilActualizar
-from app.middleware.autorizacion import requerir_administrador
-from app.rutas.autenticacion import (
+from backend.esquemas.perfil import PerfilActualizar
+from backend.middleware.autorizacion import requerir_administrador
+from backend.rutas.autenticacion import (
     obtener_db,
     usuario_actual,
     usuario_actual_admin,
 )
-from app.servicios.perfil import actualizar_perfil, obtener_perfil
+from backend.servicios.perfil import actualizar_perfil, obtener_perfil
 
 router_movil_perfil = APIRouter(
     prefix="/api/movil/profile", tags=["Perfil móvil"]

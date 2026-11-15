@@ -8,7 +8,7 @@ Backend central de Elegan, desarrollado en Python con FastAPI y preparado para G
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 En Windows PowerShell: `.venv\\Scripts\\Activate.ps1`.

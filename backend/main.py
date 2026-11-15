@@ -5,22 +5,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import DESCENDING
 
-from app.configuracion import settings
-from app.infraestructura.mongodb import create_mongodb_client, get_database
-from app.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
-from app.rutas.carrito import router_movil_carrito
-from app.rutas.autenticacion import router_admin, router_movil
-from app.rutas.productos import router_admin_productos, router_movil_productos
-from app.rutas.productos_guardados import router_movil_productos_guardados
-from app.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
-from app.rutas.perfil import router_admin_perfil, router_movil_perfil
-from app.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
-from app.rutas.media import router_admin_media, router_movil_media
-from app.servicios.carrito import inicializar_indices_carrito
-from app.servicios.productos_guardados import inicializar_indices_guardadas
-from app.servicios.ordenes import inicializar_indices_ordenes
-from app.servicios.perfil import inicializar_indices_perfiles
-from app.servicios.mensajes import inicializar_indices_mensajes
+from backend.configuracion import settings
+from backend.infraestructura.mongodb import create_mongodb_client, get_database
+from backend.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
+from backend.rutas.carrito import router_movil_carrito
+from backend.rutas.autenticacion import router_admin, router_movil
+from backend.rutas.productos import router_admin_productos, router_movil_productos
+from backend.rutas.productos_guardados import router_movil_productos_guardados
+from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
+from backend.rutas.perfil import router_admin_perfil, router_movil_perfil
+from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
+from backend.rutas.media import router_admin_media, router_movil_media
+from backend.servicios.carrito import inicializar_indices_carrito
+from backend.servicios.productos_guardados import inicializar_indices_guardadas
+from backend.servicios.ordenes import inicializar_indices_ordenes
+from backend.servicios.perfil import inicializar_indices_perfiles
+from backend.servicios.mensajes import inicializar_indices_mensajes
 
 logger = logging.getLogger("elegan")
 

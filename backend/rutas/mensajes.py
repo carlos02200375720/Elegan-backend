@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.esquemas.mensajes import MensajeCrear, RespuestaAdminCrear
-from app.middleware.autorizacion import requerir_administrador
-from app.rutas.autenticacion import (
+from backend.esquemas.mensajes import MensajeCrear, RespuestaAdminCrear
+from backend.middleware.autorizacion import requerir_administrador
+from backend.rutas.autenticacion import (
     obtener_db,
     usuario_actual,
     usuario_actual_admin,
 )
-from app.servicios.mensajes import (
+from backend.servicios.mensajes import (
     crear_mensaje,
     listar_mensajes,
     listar_mensajes_admin,

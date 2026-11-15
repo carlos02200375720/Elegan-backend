@@ -1,7 +1,7 @@
 from google.cloud import storage
 from google.cloud.storage.bucket import Bucket
 
-from app.configuracion import settings
+from backend.configuracion import settings
 
 
 def create_storage_client() -> storage.Client:

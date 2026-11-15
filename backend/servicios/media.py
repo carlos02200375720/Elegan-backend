@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.cloud import storage
 
-from app.configuracion import settings
+from backend.configuracion import settings
 
 
 TIPOS_PERMITIDOS = {
