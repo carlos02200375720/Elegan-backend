@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from backend.esquemas.productos import ProductoActualizar, ProductoCrear
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db
-from backend.servicios.productos import (
+from backend.logica.productos import (
     actualizar_producto,
     crear_producto,
     eliminar_producto,

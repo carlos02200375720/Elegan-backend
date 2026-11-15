@@ -7,7 +7,7 @@ from backend.rutas.autenticacion import (
     usuario_actual,
     usuario_actual_admin,
 )
-from backend.servicios.mensajes import (
+from backend.logica.mensajes import (
     crear_mensaje,
     listar_mensajes,
     listar_mensajes_admin,

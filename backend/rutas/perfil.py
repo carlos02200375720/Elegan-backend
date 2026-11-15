@@ -7,7 +7,7 @@ from backend.rutas.autenticacion import (
     usuario_actual,
     usuario_actual_admin,
 )
-from backend.servicios.perfil import actualizar_perfil, obtener_perfil
+from backend.logica.perfil import actualizar_perfil, obtener_perfil
 
 router_movil_perfil = APIRouter(
     prefix="/api/movil/profile", tags=["Perfil móvil"]

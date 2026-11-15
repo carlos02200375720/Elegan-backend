@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import usuario_actual
-from backend.servicios.media import guardar_multimedia
+from backend.logica.media import guardar_multimedia
 
 
 router_movil_media = APIRouter(
