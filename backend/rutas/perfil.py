@@ -7,7 +7,12 @@ from backend.rutas.autenticacion import (
     usuario_actual,
     usuario_actual_admin,
 )
-from backend.logica.perfil import actualizar_perfil, obtener_perfil
+from backend.logica.perfil import (
+    actualizar_perfil,
+    actualizar_perfil_cliente,
+    obtener_perfil,
+    obtener_perfil_cliente,
+)
 
 router_movil_perfil = APIRouter(
     prefix="/api/movil/profile", tags=["Perfil móvil"]
@@ -23,7 +28,7 @@ router_admin_perfil = APIRouter(
 def leer_perfil_movil(
     user=Depends(usuario_actual), db=Depends(obtener_db)
 ):
-    return obtener_perfil(db, user)
+    return obtener_perfil_cliente(db, user)
 
 
 @router_movil_perfil.put("")
@@ -32,7 +37,9 @@ def guardar_perfil_movil(
     user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
-    return actualizar_perfil(db, user, datos.model_dump())
+    return actualizar_perfil_cliente(
+        db, user, datos.model_dump(exclude_unset=True, exclude_none=True)
+    )
 
 
 @router_admin_perfil.get("")
@@ -48,4 +55,4 @@ def guardar_perfil_admin(
     user=Depends(usuario_actual_admin),
     db=Depends(obtener_db),
 ):
-    return actualizar_perfil(db, user, datos.model_dump())
+    return actualizar_perfil(db, user, datos.model_dump(exclude_unset=True, exclude_none=True))
