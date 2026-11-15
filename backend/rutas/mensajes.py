@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from backend.esquemas.mensajes import MensajeCrear, RespuestaAdminCrear
+from backend.modelo.mensajes import MensajeCrear, RespuestaAdminCrear
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import (
     obtener_db,

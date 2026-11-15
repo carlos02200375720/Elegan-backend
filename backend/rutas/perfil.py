@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from backend.esquemas.perfil import PerfilActualizar
+from backend.modelo.perfil import PerfilActualizar
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import (
     obtener_db,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from backend.esquemas.carrito import CarritoActualizar, CarritoAgregar
+from backend.modelo.carrito import CarritoActualizar, CarritoAgregar
 from backend.rutas.autenticacion import obtener_db, usuario_actual
 from backend.logica.carrito import (
     actualizar_item_carrito,

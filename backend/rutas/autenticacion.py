@@ -2,7 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from backend.esquemas.autenticacion import GoogleEntrada, InicioSesionEntrada, RegistroEntrada
+from backend.modelo.autenticacion import GoogleEntrada, InicioSesionEntrada, RegistroEntrada
 from backend.logica.autenticacion import (
     crear_token,
     iniciar_sesion,

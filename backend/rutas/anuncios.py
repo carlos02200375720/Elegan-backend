@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from backend.esquemas.anuncios import AnuncioActualizar, AnuncioCrear
+from backend.modelo.anuncios import AnuncioActualizar, AnuncioCrear
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db
 from backend.logica.anuncios import (

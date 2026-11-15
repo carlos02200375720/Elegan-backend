@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Depends
 
-from backend.esquemas.productos_guardados import ProductoGuardadoActualizar
+from backend.modelo.productos_guardados import ProductoGuardadoActualizar
 from backend.rutas.autenticacion import obtener_db, usuario_actual
 from backend.logica.productos_guardados import (
     cambiar_producto_guardado,
