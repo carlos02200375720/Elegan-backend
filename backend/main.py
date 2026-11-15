@@ -20,7 +20,6 @@ from backend.rutas.media import router_admin_media, router_movil_media
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos_guardados import inicializar_indices_guardadas
 from backend.logica.ordenes import inicializar_indices_ordenes
-from backend.logica.perfil import inicializar_indices_perfiles
 from backend.logica.mensajes import inicializar_indices_mensajes
 
 logger = logging.getLogger("elegan")
@@ -49,7 +48,6 @@ async def lifespan(application: FastAPI):
         inicializar_indices_guardadas(database)
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
-        inicializar_indices_perfiles(database)
         inicializar_indices_mensajes(database)
 
         application.state.mongodb_client = mongo_client
