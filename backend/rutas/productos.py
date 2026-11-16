@@ -23,16 +23,19 @@ router_admin_productos = APIRouter(
 
 @router_movil_productos.get("")
 def listar_productos_movil(db=Depends(obtener_db)):
-    return listar_productos(db)
+    # El catálogo móvil solo expone productos publicados.
+    return listar_productos(db, solo_publicados=True)
 
 
 @router_movil_productos.get("/{product_id}")
 def obtener_producto_movil(product_id: str, db=Depends(obtener_db)):
-    return obtener_producto(db, product_id)
+    # Un borrador no puede consultarse desde la API móvil.
+    return obtener_producto(db, product_id, solo_publicados=True)
 
 
 @router_admin_productos.get("")
 def listar_productos_admin(db=Depends(obtener_db)):
+    # El panel necesita ver tanto borradores como productos publicados.
     return listar_productos(db)
 
 
@@ -43,7 +46,7 @@ def obtener_producto_admin(product_id: str, db=Depends(obtener_db)):
 
 @router_admin_productos.post("", status_code=201)
 def crear_producto_admin(datos: ProductoCrear, db=Depends(obtener_db)):
-    # Incluye los valores predeterminados definidos por el esquema del producto.
+    # Los productos nuevos quedan como borrador salvo publicación explícita.
     return crear_producto(db, datos.model_dump())
 
 
