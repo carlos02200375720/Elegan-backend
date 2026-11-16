@@ -124,31 +124,3 @@ def actualizar_usuario(db: Any, user: dict, datos: dict) -> dict:
             "updatedAt": actualizado.get("updatedAt"),
         },
     }
-
-
-def migrar_coleccion_usuarios(db: Any) -> None:
-    """Migra la colección anterior users a usuarios sin perder documentos."""
-    colecciones = set(db.list_collection_names())
-    if "users" not in colecciones:
-        return
-
-    origen = db["users"]
-    if "usuarios" not in colecciones:
-        origen.rename("usuarios")
-        return
-
-    destino = db["usuarios"]
-    for documento in origen.find({}):
-        destino.replace_one({"_id": documento["_id"]}, documento, upsert=True)
-
-    for nombre, indice in origen.index_information().items():
-        if nombre == "_id_":
-            continue
-        opciones = {
-            clave: valor
-            for clave, valor in indice.items()
-            if clave not in {"v", "key", "ns"}
-        }
-        destino.create_index(indice["key"], name=nombre, **opciones)
-
-    origen.drop()
