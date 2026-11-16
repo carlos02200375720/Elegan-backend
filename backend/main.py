@@ -18,6 +18,7 @@ from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
 from backend.rutas.media import router_admin_media, router_movil_media
 from backend.logica.carrito import inicializar_indices_carrito
+from backend.logica.productos import inicializar_indices_productos
 from backend.logica.productos_guardados import inicializar_indices_guardadas
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.mensajes import inicializar_indices_mensajes
@@ -45,6 +46,7 @@ async def lifespan(application: FastAPI):
         anuncios = database["announcements"]
         anuncios.create_index("isActive")
         anuncios.create_index([("createdAt", DESCENDING)])
+        inicializar_indices_productos(database)
         inicializar_indices_guardadas(database)
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
