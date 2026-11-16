@@ -17,6 +17,7 @@ from backend.rutas.pagos import router_movil_pagos
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
 from backend.rutas.media import router_admin_media, router_movil_media
+from backend.logica.usuario import migrar_coleccion_usuarios
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos_guardados import inicializar_indices_guardadas
 from backend.logica.ordenes import inicializar_indices_ordenes
@@ -41,6 +42,8 @@ async def lifespan(application: FastAPI):
     try:
         database = get_database(mongo_client)
         mongo_client.admin.command("ping")
+
+        migrar_coleccion_usuarios(database)
 
         anuncios = database["announcements"]
         anuncios.create_index("isActive")
