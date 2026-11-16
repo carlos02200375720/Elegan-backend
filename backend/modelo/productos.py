@@ -19,6 +19,7 @@ class ProductoBase(BaseModel):
     sizes: list[str] = Field(default_factory=list)
     colors: list[str] = Field(default_factory=list)
     stock: int = Field(default=10, ge=0)
+    isActive: bool = False
     isFeatured: bool = True
     reviewCount: int = Field(default=0, ge=0)
     rating: float = Field(default=5.0, ge=0, le=5)
@@ -57,6 +58,7 @@ class ProductoActualizar(BaseModel):
     sizes: list[str] | None = None
     colors: list[str] | None = None
     stock: int | None = Field(default=None, ge=0)
+    isActive: bool | None = None
     isFeatured: bool | None = None
     reviewCount: int | None = Field(default=None, ge=0)
     rating: float | None = Field(default=None, ge=0, le=5)
