@@ -15,10 +15,10 @@ from backend.logica.usuario import (
 )
 
 router_movil_usuario = APIRouter(
-    prefix="/api/movil/profile", tags=["Usuario móvil"]
+    prefix="/api/movil/usuario", tags=["Usuario móvil"]
 )
 router_admin_usuario = APIRouter(
-    prefix="/api/admin/profile",
+    prefix="/api/admin/usuario",
     tags=["Usuario administración"],
     dependencies=[Depends(requerir_administrador)],
 )
