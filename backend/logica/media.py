@@ -138,8 +138,7 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
         return
 
     referencias_actuales: set[str] = set()
-    # Se revisan todas las colecciones para proteger medios compartidos entre
-    # productos, anuncios, perfiles, pedidos u otros documentos de la aplicación.
+    # Se revisan todas las colecciones para proteger los medios compartidos.
     for nombre_coleccion in db.list_collection_names():
         for documento in db[nombre_coleccion].find({}):
             referencias_actuales.update(_referencias_multimedia(documento))
