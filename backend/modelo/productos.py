@@ -60,3 +60,10 @@ class ProductoActualizar(BaseModel):
     isFeatured: bool | None = None
     reviewCount: int | None = Field(default=None, ge=0)
     rating: float | None = Field(default=None, ge=0, le=5)
+
+    @field_validator("category")
+    @classmethod
+    def limpiar_categoria(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip().lower() or "todo"
