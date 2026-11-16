@@ -20,7 +20,7 @@ PATRON_CORREO = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def colecciones(db: Any) -> tuple[Collection, Collection]:
-    return db["users"], db["super-admins"]
+    return db["usuarios"], db["super-admins"]
 
 
 def correo_normalizado(email: str) -> str:
