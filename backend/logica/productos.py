@@ -3,15 +3,24 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from pymongo import DESCENDING
+from pymongo.collection import Collection
 
 from backend.logica.media import eliminar_medios_sin_referencias
-from pymongo.collection import Collection
 
 NOMBRE_COLECCION_PRODUCTOS = "products"
 
 
 def coleccion_productos(db: Any) -> Collection:
     return db[NOMBRE_COLECCION_PRODUCTOS]
+
+
+def inicializar_indices_productos(db: Any) -> None:
+    # Acelera el orden descendente utilizado por el catálogo móvil y el panel.
+    coleccion_productos(db).create_index(
+        [("createdAt", DESCENDING)],
+        name="idx_products_created_at",
+    )
 
 
 def formatear_producto(documento: dict | None) -> dict | None:
