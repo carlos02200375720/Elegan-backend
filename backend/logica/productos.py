@@ -28,16 +28,24 @@ def formatear_producto(documento: dict | None) -> dict | None:
         return None
     producto = dict(documento)
     producto["id"] = str(producto.pop("_id"))
+    # Compatibilidad con documentos anteriores al campo de publicación.
+    producto.setdefault("isActive", False)
     return producto
 
 
-def listar_productos(db: Any) -> dict:
-    productos = coleccion_productos(db).find({}).sort("createdAt", -1)
+def listar_productos(db: Any, solo_publicados: bool = False) -> dict:
+    filtro = {"isActive": True} if solo_publicados else {}
+    productos = coleccion_productos(db).find(filtro).sort("createdAt", -1)
     return {"items": [formatear_producto(item) for item in productos]}
 
 
-def obtener_producto(db: Any, product_id: str) -> dict:
-    item = coleccion_productos(db).find_one({"_id": product_id})
+def obtener_producto(
+    db: Any, product_id: str, solo_publicados: bool = False
+) -> dict:
+    filtro = {"_id": product_id}
+    if solo_publicados:
+        filtro["isActive"] = True
+    item = coleccion_productos(db).find_one(filtro)
     if item is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
     return {"item": formatear_producto(item)}
@@ -53,6 +61,7 @@ def crear_producto(db: Any, datos: dict) -> dict:
     datos.pop("_id", None)
     datos.pop("createdAt", None)
     datos.pop("updatedAt", None)
+    datos.setdefault("isActive", False)
     item = {
         **datos,
         "_id": product_id,
