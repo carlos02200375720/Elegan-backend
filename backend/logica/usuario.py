@@ -54,7 +54,7 @@ def actualizar_usuario_admin(db: Any, user: dict, datos: dict) -> dict:
 
 
 def obtener_usuario(db: Any, user: dict) -> dict:
-    documento = db["users"].find_one(
+    documento = db["usuarios"].find_one(
         {"_id": str(user["_id"])},
         {"passwordHash": 0},
     )
@@ -84,7 +84,7 @@ def actualizar_usuario(db: Any, user: dict, datos: dict) -> dict:
 
     if "email" in datos_limpios:
         email = str(datos_limpios["email"]).strip().lower()
-        existente = db["users"].find_one(
+        existente = db["usuarios"].find_one(
             {"email": email, "_id": {"$ne": user_id}},
             {"_id": 1},
         )
@@ -100,14 +100,14 @@ def actualizar_usuario(db: Any, user: dict, datos: dict) -> dict:
         raise HTTPException(status_code=400, detail="EMPTY_PROFILE_UPDATE")
 
     datos_limpios["updatedAt"] = datetime.now(timezone.utc)
-    resultado = db["users"].update_one(
+    resultado = db["usuarios"].update_one(
         {"_id": user_id},
         {"$set": datos_limpios},
     )
     if resultado.matched_count != 1:
         raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
 
-    actualizado = db["users"].find_one(
+    actualizado = db["usuarios"].find_one(
         {"_id": user_id},
         {"passwordHash": 0},
     )
@@ -124,3 +124,31 @@ def actualizar_usuario(db: Any, user: dict, datos: dict) -> dict:
             "updatedAt": actualizado.get("updatedAt"),
         },
     }
+
+
+def migrar_coleccion_usuarios(db: Any) -> None:
+    """Migra la colección anterior users a usuarios sin perder documentos."""
+    colecciones = set(db.list_collection_names())
+    if "users" not in colecciones:
+        return
+
+    origen = db["users"]
+    if "usuarios" not in colecciones:
+        origen.rename("usuarios")
+        return
+
+    destino = db["usuarios"]
+    for documento in origen.find({}):
+        destino.replace_one({"_id": documento["_id"]}, documento, upsert=True)
+
+    for nombre, indice in origen.index_information().items():
+        if nombre == "_id_":
+            continue
+        opciones = {
+            clave: valor
+            for clave, valor in indice.items()
+            if clave not in {"v", "key", "ns"}
+        }
+        destino.create_index(indice["key"], name=nombre, **opciones)
+
+    origen.drop()
