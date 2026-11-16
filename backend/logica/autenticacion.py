@@ -4,7 +4,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import bcrypt
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
 import jwt
 from fastapi import HTTPException, status
 from google.auth.transport import requests as google_requests
@@ -16,6 +17,7 @@ from backend.configuracion import settings
 EMISOR = "elegan-movil-api"
 AUDIENCIA_MOVIL = "elegan-android"
 AUDIENCIA_ADMIN = "elegan-admin"
+PASSWORD_HASHER = PasswordHasher()
 PATRON_CORREO = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -107,19 +109,17 @@ def validar_acceso_admin(user: dict) -> None:
 
 
 def hash_contrasena(password: str) -> str:
-    # bcrypt procesa hasta 72 bytes; se conserva la compatibilidad con bcryptjs.
-    raw = password.encode("utf-8")[:72]
-    return bcrypt.hashpw(raw, bcrypt.gensalt(rounds=12)).decode("utf-8")
+    # Argon2id procesa la contraseña completa, sin el límite de 72 bytes de bcrypt.
+    return PASSWORD_HASHER.hash(password)
 
 
 def verificar_contrasena(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
     try:
-        return bcrypt.checkpw(password.encode("utf-8")[:72], password_hash.encode("utf-8"))
-    except (ValueError, TypeError):
+        return PASSWORD_HASHER.verify(password_hash, password)
+    except (VerificationError, InvalidHashError, TypeError, ValueError):
         return False
-
 
 def registrar_cliente(db: Any, email: str, password: str, name: str, cliente: str) -> dict:
     if cliente == "admin":
