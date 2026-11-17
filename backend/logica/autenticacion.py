@@ -121,6 +121,67 @@ def verificar_contrasena(password: str, password_hash: str | None) -> bool:
     except (VerificationError, InvalidHashError, TypeError, ValueError):
         return False
 
+
+def inicializar_super_admin(db: Any) -> None:
+    """Crea o completa la cuenta superadmin usando la configuración del servicio."""
+    email = correo_normalizado(settings.super_admin_email) if settings.super_admin_email else ""
+    password = settings.super_admin_password
+
+    # Mantiene el inicio de sesión Google existente si aún no se configuró contraseña.
+    if not password:
+        return
+    if not email:
+        raise RuntimeError(
+            "SUPER_ADMIN_EMAIL es obligatorio cuando se configura SUPER_ADMIN_PASSWORD."
+        )
+    if not PATRON_CORREO.match(email):
+        raise RuntimeError("SUPER_ADMIN_EMAIL no contiene un correo válido.")
+    if len(password) < 8 or len(password) > 128:
+        raise RuntimeError("SUPER_ADMIN_PASSWORD debe tener entre 8 y 128 caracteres.")
+
+    admins = db["super-admins"]
+    admins.create_index(
+        [("email", 1)],
+        unique=True,
+        name="idx_super_admins_email_unique",
+    )
+
+    admin = admins.find_one({"email": email})
+    ahora = datetime.now(timezone.utc)
+
+    if admin is None:
+        admin = {
+            "_id": str(uuid.uuid4()),
+            "email": email,
+            "name": "elegan",
+            "passwordHash": hash_contrasena(password),
+            "role": "superadmin",
+            "provider": "password",
+            "permissions": ["all"],
+            "isActive": True,
+            "createdAt": ahora,
+            "updatedAt": ahora,
+        }
+        try:
+            admins.insert_one(admin)
+        except Exception as error:
+            # Si otra instancia creó la misma cuenta al mismo tiempo, reutilizarla.
+            if getattr(error, "code", None) != 11000:
+                raise
+        return
+
+    cambios = {"role": "superadmin", "updatedAt": ahora}
+    if not admin.get("passwordHash"):
+        cambios["passwordHash"] = hash_contrasena(password)
+    if not admin.get("permissions"):
+        cambios["permissions"] = ["all"]
+    if "isActive" not in admin:
+        cambios["isActive"] = True
+
+    # La contraseña existente nunca se reemplaza por la variable de entorno.
+    admins.update_one({"_id": admin["_id"]}, {"$set": cambios})
+
+
 def registrar_cliente(db: Any, email: str, password: str, name: str, cliente: str) -> dict:
     if cliente == "admin":
         raise HTTPException(status_code=403, detail="ADMIN_REGISTRATION_DISABLED")
