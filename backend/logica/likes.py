@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from fastapi import HTTPException
 from pymongo import DESCENDING
 from pymongo.collection import Collection
 
@@ -57,14 +58,12 @@ def cambiar_like(db: Any, user: dict, product_id: str, liked: bool) -> dict:
     user_id = str(user["_id"])
     product_id = str(product_id).strip()
     if not product_id:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="INVALID_PRODUCT_ID")
 
     producto = db[NOMBRE_COLECCION_PRODUCTOS].find_one(
         {"_id": product_id, "isActive": True}, {"_id": 1}
     )
     if producto is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
 
     coleccion = coleccion_likes(db)
