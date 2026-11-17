@@ -38,7 +38,7 @@ El registro público solo crea documentos en `users` con rol `customer`. Las cue
 
 ## Variables de entorno
 
-Configura `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET` (mínimo 32 caracteres), `GOOGLE_WEB_CLIENT_ID` y `SUPER_ADMIN_EMAIL`. `GCS_BUCKET_NAME` se reserva para la integración de multimedia. Copia `.env.example` a `.env` en desarrollo local y no subas secretos al repositorio.
+Configura `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET` (mínimo 32 caracteres), `GOOGLE_WEB_CLIENT_ID` y `SUPER_ADMIN_EMAIL`. `GCS_BUCKET_NAME` se reserva para la integración de multimedia. Copia `.env.example` a `.env` en desarrollo local y no subas secretos al repositorio. Para habilitar el acceso por correo y contraseña, configura `SUPER_ADMIN_PASSWORD` como secreto de Google Secret Manager y vincúlalo a Cloud Run con ese mismo nombre. Al arrancar, el backend crea el documento en `super-admins` si no existe; si existe sin `passwordHash`, agrega el hash Argon2. Si ya tiene contraseña, no la reemplaza. Si `SUPER_ADMIN_PASSWORD` está vacío, se conserva el acceso Google actual.
 
 ## JWT
 
