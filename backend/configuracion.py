@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     google_web_client_id: str = ""
     super_admin_email: str = ""
+    super_admin_password: str = ""
     paypal_client_id: str = ""
     paypal_client_secret: str = ""
     paypal_mode: str = "sandbox"
