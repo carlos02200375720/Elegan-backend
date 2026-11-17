@@ -12,6 +12,7 @@ from backend.rutas.carrito import router_movil_carrito
 from backend.rutas.autenticacion import router_admin, router_movil
 from backend.rutas.productos import router_admin_productos, router_movil_productos
 from backend.rutas.productos_guardados import router_movil_productos_guardados
+from backend.rutas.likes import router_movil_likes
 from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
 from backend.rutas.pagos import router_movil_pagos
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
@@ -20,6 +21,7 @@ from backend.rutas.media import router_admin_media, router_movil_media
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos import inicializar_indices_productos
 from backend.logica.productos_guardados import inicializar_indices_guardadas
+from backend.logica.likes import inicializar_indices_likes
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.mensajes import inicializar_indices_mensajes
 from backend.logica.autenticacion import inicializar_super_admin
@@ -51,6 +53,7 @@ async def lifespan(application: FastAPI):
         anuncios.create_index([("createdAt", DESCENDING)])
         inicializar_indices_productos(database)
         inicializar_indices_guardadas(database)
+        inicializar_indices_likes(database)
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
         inicializar_indices_mensajes(database)
@@ -97,6 +100,7 @@ app.include_router(router_admin_productos)
 app.include_router(router_movil_anuncios)
 app.include_router(router_admin_anuncios)
 app.include_router(router_movil_productos_guardados)
+app.include_router(router_movil_likes)
 app.include_router(router_movil_carrito)
 app.include_router(router_movil_pagos)
 app.include_router(router_movil_ordenes)
