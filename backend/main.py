@@ -22,6 +22,7 @@ from backend.logica.productos import inicializar_indices_productos
 from backend.logica.productos_guardados import inicializar_indices_guardadas
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.mensajes import inicializar_indices_mensajes
+from backend.logica.autenticacion import inicializar_super_admin
 
 logger = logging.getLogger("elegan")
 
@@ -42,6 +43,8 @@ async def lifespan(application: FastAPI):
     try:
         database = get_database(mongo_client)
         mongo_client.admin.command("ping")
+
+        inicializar_super_admin(database)
 
         anuncios = database["announcements"]
         anuncios.create_index("isActive")
