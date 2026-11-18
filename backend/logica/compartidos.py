@@ -24,15 +24,13 @@ def inicializar_indices_compartidos(db: Any) -> None:
         [("userId", 1), ("createdAt", DESCENDING)],
         name="idx_shares_user_created_at",
     )
-    # eventId hace idempotente cada solicitud y evita contar reintentos dos veces.
     coleccion.create_index(
         [("eventId", 1)],
         name="uq_shares_event_id",
         unique=True,
         sparse=True,
     )
-    # Compatibilidad con clientes visitantes antiguos que aún no envían eventId:
-    # se cuenta como máximo un compartido por visitante y producto.
+    # Compatibilidad temporal con clientes visitantes que aún no envían eventId.
     coleccion.create_index(
         [("legacyVisitorKey", 1)],
         name="uq_shares_legacy_visitor",
@@ -82,39 +80,40 @@ def registrar_compartido(
         "productId": product_id,
         "createdAt": datetime.now(timezone.utc),
     }
+    clave_duplicado: dict | None = None
+
     if user is not None:
         documento["userId"] = str(user["_id"])
     else:
         visitor_id = str(visitor_id or "").strip()
-        if not visitor_id:
-            raise HTTPException(status_code=422, detail="VISITOR_ID_REQUIRED")
+        if not visitor_id or len(visitor_id) > 128:
+            raise HTTPException(status_code=422, detail="INVALID_VISITOR_ID")
         documento["visitorId"] = visitor_id
         if not event_id:
-            documento["legacyVisitorKey"] = f"{product_id}:{visitor_id}"
+            clave_duplicado = {
+                "legacyVisitorKey": f"{product_id}:{visitor_id}"
+            }
+            documento.update(clave_duplicado)
 
     if event_id:
-        documento["eventId"] = str(event_id).strip()
+        event_id = str(event_id).strip()
+        if not event_id or len(event_id) > 128:
+            raise HTTPException(status_code=422, detail="INVALID_EVENT_ID")
+        documento["eventId"] = event_id
+        clave_duplicado = {"eventId": event_id}
 
     coleccion = coleccion_compartidos(db)
+    duplicado = False
     try:
         coleccion.insert_one(documento)
     except DuplicateKeyError:
-        # Un reintento del mismo evento ya fue registrado: responder éxito
-        # sin incrementar nuevamente el contador.
-        pass
+        existente = coleccion.find_one(clave_duplicado or {})
+        if existente is None or existente.get("productId") != product_id:
+            raise HTTPException(status_code=409, detail="SHARE_EVENT_CONFLICT")
+        duplicado = True
 
     return {
         "success": True,
         "sharesCount": coleccion.count_documents({"productId": product_id}),
-        "duplicate": bool(
-            (event_id and coleccion.find_one({"eventId": str(event_id).strip()}, {"_id": 1}))
-            or (
-                not event_id
-                and user is None
-                and coleccion.find_one(
-                    {"legacyVisitorKey": f"{product_id}:{str(visitor_id).strip()}"},
-                    {"_id": 1},
-                )
-            )
-        ),
+        "duplicate": duplicado,
     }
