@@ -23,8 +23,12 @@ router_admin_productos = APIRouter(
 
 @router_movil_productos.get("")
 def listar_productos_movil(db=Depends(obtener_db)):
-    # El catálogo móvil solo expone productos publicados.
-    return listar_productos(db, solo_publicados=True)
+    # El catálogo móvil expone productos publicados y su conteo persistente de comentarios.
+    return listar_productos(
+        db,
+        solo_publicados=True,
+        incluir_conteo_comentarios=True,
+    )
 
 
 @router_movil_productos.get("/{product_id}")
