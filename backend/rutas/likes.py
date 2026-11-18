@@ -21,7 +21,6 @@ def listar_likes(user=Depends(usuario_actual), db=Depends(obtener_db)):
 @router_movil_likes.get("/counts")
 def consultar_conteos_likes(
     product_ids: list[str] = Query(default=[], alias="productIds", max_length=100),
-    user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
     return obtener_conteos_likes(db, product_ids)
