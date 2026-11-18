@@ -33,10 +33,37 @@ def formatear_producto(documento: dict | None) -> dict | None:
     return producto
 
 
-def listar_productos(db: Any, solo_publicados: bool = False) -> dict:
+def listar_productos(
+    db: Any,
+    solo_publicados: bool = False,
+    incluir_conteo_comentarios: bool = False,
+) -> dict:
     filtro = {"isActive": True} if solo_publicados else {}
-    productos = coleccion_productos(db).find(filtro).sort("createdAt", -1)
-    return {"items": [formatear_producto(item) for item in productos]}
+    documentos = list(coleccion_productos(db).find(filtro).sort("createdAt", -1))
+
+    conteos_comentarios: dict[str, int] = {}
+    if incluir_conteo_comentarios and documentos:
+        ids_productos = [str(item.get("_id", "")) for item in documentos]
+        resultados = db["comments"].aggregate(
+            [
+                {"$match": {"productId": {"$in": ids_productos}}},
+                {"$group": {"_id": "$productId", "count": {"$sum": 1}}},
+            ]
+        )
+        conteos_comentarios = {
+            str(item["_id"]): int(item["count"]) for item in resultados
+        }
+
+    items = []
+    for documento in documentos:
+        producto = formatear_producto(documento)
+        if incluir_conteo_comentarios and producto is not None:
+            producto["commentsCount"] = conteos_comentarios.get(
+                str(producto["id"]), 0
+            )
+        items.append(producto)
+
+    return {"items": items}
 
 
 def obtener_producto(
