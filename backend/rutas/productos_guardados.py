@@ -23,7 +23,6 @@ def listar_guardados(
 @router_movil_productos_guardados.get("/counts")
 def consultar_conteos_guardados(
     product_ids: list[str] = Query(default=[], alias="productIds", max_length=100),
-    user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
     return obtener_conteos_guardados(db, product_ids)
