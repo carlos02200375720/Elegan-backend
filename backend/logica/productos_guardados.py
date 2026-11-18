@@ -37,11 +37,36 @@ def listar_productos_guardados(db: Any, user: dict) -> dict:
     return {"ids": [fila["productId"] for fila in filas]}
 
 
+def obtener_conteos_guardados(db: Any, product_ids: list[str]) -> dict:
+    ids = list(dict.fromkeys(
+        str(value).strip() for value in product_ids if str(value).strip()
+    ))
+    if not ids:
+        return {"counts": {}}
+
+    resultados = coleccion_guardadas(db).aggregate(
+        [
+            {"$match": {"productId": {"$in": ids}}},
+            {"$group": {"_id": "$productId", "count": {"$sum": 1}}},
+        ]
+    )
+    counts = {product_id: 0 for product_id in ids}
+    counts.update({
+        str(item["_id"]): int(item["count"]) for item in resultados
+    })
+    return {"counts": counts}
+
+
 def cambiar_producto_guardado(
     db: Any, user: dict, product_id: str, saved: bool | None
 ) -> dict:
     user_id = str(user["_id"])
-    filtro = {"userId": user_id, "productId": str(product_id)}
+    product_id = str(product_id).strip()
+    if not product_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="INVALID_PRODUCT_ID")
+
+    filtro = {"userId": user_id, "productId": product_id}
     guardar = saved is not False
     coleccion = coleccion_guardadas(db)
 
@@ -59,4 +84,7 @@ def cambiar_producto_guardado(
             upsert=True,
         )
 
-    return {"saved": guardar}
+    return {
+        "saved": guardar,
+        "savesCount": coleccion.count_documents({"productId": product_id}),
+    }
