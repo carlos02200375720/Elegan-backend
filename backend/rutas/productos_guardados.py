@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Query
 
 from backend.modelo.productos_guardados import ProductoGuardadoActualizar
 from backend.rutas.autenticacion import obtener_db, usuario_actual
 from backend.logica.productos_guardados import (
     cambiar_producto_guardado,
     listar_productos_guardados,
+    obtener_conteos_guardados,
 )
 
 router_movil_productos_guardados = APIRouter(
@@ -17,6 +18,15 @@ def listar_guardados(
     user=Depends(usuario_actual), db=Depends(obtener_db)
 ):
     return listar_productos_guardados(db, user)
+
+
+@router_movil_productos_guardados.get("/counts")
+def consultar_conteos_guardados(
+    product_ids: list[str] = Query(default=[], alias="productIds", max_length=100),
+    user=Depends(usuario_actual),
+    db=Depends(obtener_db),
+):
+    return obtener_conteos_guardados(db, product_ids)
 
 
 @router_movil_productos_guardados.put("/{product_id}")
