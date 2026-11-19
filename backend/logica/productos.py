@@ -132,6 +132,14 @@ def eliminar_producto(db: Any, product_id: str) -> dict:
     anterior = coleccion.find_one({"_id": product_id})
     if anterior is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
+    # Eliminar únicamente las interacciones asociadas al producto.
+    # Los pedidos se conservan íntegros como historial de compras.
+    db["likes"].delete_many({"productId": product_id})
+    db["comments"].delete_many({"productId": product_id})
+    db["publication_shares"].delete_many({"productId": product_id})
+    db["guardadas"].delete_many({"productId": product_id})
+    db["cart"].delete_many({"productId": product_id})
+
     coleccion.delete_one({"_id": product_id})
     eliminar_medios_sin_referencias(db, [anterior])
     return {"success": True}
