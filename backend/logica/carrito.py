@@ -23,7 +23,7 @@ def inicializar_indices_carrito(db: Any) -> None:
             ("selectedColor", 1),
         ("selectedShippingId", 1),
         ],
-        name="idx_cart_user_product_variant",
+        name="idx_cart_user_product_variant_shipping",
     )
     coleccion.create_index(
         [("userId", 1), ("createdAt", 1)],
