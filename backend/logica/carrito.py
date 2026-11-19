@@ -21,6 +21,7 @@ def inicializar_indices_carrito(db: Any) -> None:
             ("productId", 1),
             ("selectedSize", 1),
             ("selectedColor", 1),
+        ("selectedShippingId", 1),
         ],
         name="idx_cart_user_product_variant",
     )
@@ -58,11 +59,22 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
 
     talla = datos.get("selectedSize")
     color = datos.get("selectedColor")
+    shipping_id = str(datos.get("selectedShippingId") or "").strip()
+    shipping_methods = producto.get("shippingMethods") or []
+    metodo_envio = next(
+        (metodo for metodo in shipping_methods if str(metodo.get("id") or "") == shipping_id),
+        None,
+    ) if shipping_id else None
+    if shipping_methods and metodo_envio is None:
+        raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
+    if not shipping_methods and shipping_id:
+        raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
     filtro = {
         "userId": user_id,
         "productId": product_id,
         "selectedSize": talla,
         "selectedColor": color,
+        "selectedShippingId": shipping_id,
     }
     ahora = datetime.now(timezone.utc)
     coleccion = coleccion_carrito(db)
@@ -72,6 +84,11 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
         "name": producto.get("name", ""),
         "price": producto.get("price", 0),
         "imageUrl": producto.get("imageUrl", ""),
+        "shippingMethodId": metodo_envio.get("id") if metodo_envio else "",
+        "shippingMethodName": metodo_envio.get("name", "") if metodo_envio else "",
+        "shippingPrice": float(metodo_envio.get("price", 0)) if metodo_envio else 0.0,
+        "shippingDeliveryTime": metodo_envio.get("deliveryTime", "") if metodo_envio else "",
+        "shippingOrigin": metodo_envio.get("origin", "") if metodo_envio else "",
     }
 
     if existente is not None:
