@@ -3,6 +3,16 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class MetodoEnvioProducto(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=100)
+    price: float = Field(ge=0)
+    deliveryTime: str = Field(min_length=1, max_length=100)
+    origin: str = Field(min_length=1, max_length=120)
+
+
 class ProductoBase(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -18,6 +28,7 @@ class ProductoBase(BaseModel):
     mediaFormat: str = "1:1"
     sizes: list[str] = Field(default_factory=list)
     colors: list[str] = Field(default_factory=list)
+    shippingMethods: list[MetodoEnvioProducto] = Field(default_factory=list, max_length=12)
     stock: int = Field(default=10, ge=0)
     isActive: bool = False
     isFeatured: bool = True
@@ -57,6 +68,7 @@ class ProductoActualizar(BaseModel):
     mediaFormat: str | None = None
     sizes: list[str] | None = None
     colors: list[str] | None = None
+    shippingMethods: list[MetodoEnvioProducto] | None = Field(default=None, max_length=12)
     stock: int | None = Field(default=None, ge=0)
     isActive: bool | None = None
     isFeatured: bool | None = None
