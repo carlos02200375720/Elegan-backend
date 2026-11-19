@@ -206,8 +206,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
             raise HTTPException(status_code=409, detail="INVALID_SHIPPING_METHOD")
         shipping_price = _decimal_envio(shipping_method.get("price", 0)) if shipping_method else Decimal("0.00")
         subtotal_dop += precio * cantidad
-        shipping_total_dop += shipping_price * cantidad
-        total_dop += (precio + shipping_price) * cantidad
+        shipping_total_dop += shipping_price
+        total_dop += precio * cantidad + shipping_price
         items.append({
             "productId": product_id,
             "name": str(producto.get("name") or "Producto")[:200],
