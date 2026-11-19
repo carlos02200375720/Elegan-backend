@@ -1,4 +1,9 @@
+import os
 import re
+import shutil
+import subprocess
+import tempfile
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from uuid import uuid4
 from urllib.parse import quote
@@ -16,6 +21,54 @@ TIPOS_PERMITIDOS = {
 }
 TAMANO_MAXIMO = 100 * 1024 * 1024
 TAMANO_BLOQUE = 8 * 1024 * 1024
+
+
+def _preparar_mp4_para_reproduccion(archivo, directorio: str) -> str:
+    """Reordena los átomos MP4 sin recodificar audio ni video."""
+    ejecutable = shutil.which("ffmpeg")
+    if not ejecutable:
+        raise HTTPException(status_code=503, detail="MEDIA_PROCESSOR_NOT_CONFIGURED")
+
+    entrada = os.path.join(directorio, "entrada.mp4")
+    salida = os.path.join(directorio, "salida.mp4")
+
+    total = 0
+    with open(entrada, "wb") as temporal:
+        while True:
+            bloque = archivo.read(TAMANO_BLOQUE)
+            if not bloque:
+                break
+            total += len(bloque)
+            if total > TAMANO_MAXIMO:
+                raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
+            temporal.write(bloque)
+
+    if total == 0:
+        raise HTTPException(status_code=422, detail="EMPTY_VIDEO")
+
+    try:
+        resultado = subprocess.run(
+            [
+                ejecutable, "-nostdin", "-hide_banner", "-loglevel", "error",
+                "-y", "-i", entrada, "-map", "0", "-c", "copy",
+                "-movflags", "+faststart", "-f", "mp4", salida,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise HTTPException(status_code=422, detail="MP4_PREPARATION_TIMEOUT") from error
+
+    if resultado.returncode != 0 or not os.path.isfile(salida):
+        raise HTTPException(status_code=422, detail="INVALID_OR_UNSUPPORTED_MP4")
+
+    if os.path.getsize(salida) > TAMANO_MAXIMO:
+        raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
+
+    return salida
 
 
 def guardar_multimedia(
@@ -48,17 +101,28 @@ def guardar_multimedia(
         objeto.cache_control = "public, max-age=31536000"
         objeto.content_type = content_type
 
-        # UploadFile usa almacenamiento temporal de Starlette; se copia a GCS
-        # en bloques para no cargar el archivo completo en memoria.
-        with objeto.open("wb", chunk_size=TAMANO_BLOQUE) as destino:
-            while True:
-                bloque = archivo.file.read(TAMANO_BLOQUE)
-                if not bloque:
-                    break
-                tamano += len(bloque)
-                if tamano > TAMANO_MAXIMO:
-                    raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
-                destino.write(bloque)
+        with ExitStack() as recursos:
+            fuente = archivo.file
+            if content_type == "video/mp4":
+                directorio = recursos.enter_context(
+                    tempfile.TemporaryDirectory(prefix="elegan-mp4-")
+                )
+                ruta_preparada = _preparar_mp4_para_reproduccion(
+                    archivo.file, directorio
+                )
+                fuente = recursos.enter_context(open(ruta_preparada, "rb"))
+
+            # La salida preparada se transmite a GCS por bloques; nunca se carga
+            # el MP4 completo en memoria. Los temporales se eliminan al terminar.
+            with objeto.open("wb", chunk_size=TAMANO_BLOQUE) as destino:
+                while True:
+                    bloque = fuente.read(TAMANO_BLOQUE)
+                    if not bloque:
+                        break
+                    tamano += len(bloque)
+                    if tamano > TAMANO_MAXIMO:
+                        raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
+                    destino.write(bloque)
 
         url = (
             f"https://storage.googleapis.com/{settings.gcs_bucket_name}/"
