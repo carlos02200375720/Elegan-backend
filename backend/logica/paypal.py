@@ -113,6 +113,16 @@ def _decimal_precio(valor: Any) -> Decimal:
     return precio.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _decimal_envio(valor: Any) -> Decimal:
+    try:
+        precio = Decimal(str(valor))
+    except (InvalidOperation, TypeError, ValueError):
+        raise HTTPException(status_code=409, detail="INVALID_SHIPPING_PRICE")
+    if not precio.is_finite() or precio < 0:
+        raise HTTPException(status_code=409, detail="INVALID_SHIPPING_PRICE")
+    return precio.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def _liberar_reservas_vencidas(db: Any) -> None:
     ahora = datetime.now(timezone.utc)
     ordenes = db["orders"].find({
@@ -182,11 +192,27 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
             raise HTTPException(status_code=409, detail="PRODUCT_STOCK_NOT_CONFIGURED")
         if stock < cantidad:
             raise HTTPException(status_code=409, detail="INSUFFICIENT_STOCK")
-        total_dop += precio * cantidad
+        shipping_id = str(item.get("selectedShippingId") or "")
+        shipping_methods = producto.get("shippingMethods") or []
+        shipping_method = next(
+            (method for method in shipping_methods if str(method.get("id") or "") == shipping_id),
+            None,
+        ) if shipping_id else None
+        if shipping_methods and shipping_method is None:
+            raise HTTPException(status_code=409, detail="SHIPPING_METHOD_REQUIRED")
+        if shipping_id and shipping_method is None:
+            raise HTTPException(status_code=409, detail="INVALID_SHIPPING_METHOD")
+        shipping_price = _decimal_envio(shipping_method.get("price", 0)) if shipping_method else Decimal("0.00")
+        total_dop += (precio + shipping_price) * cantidad
         items.append({
             "productId": product_id,
             "name": str(producto.get("name") or "Producto")[:200],
             "priceDOP": format(precio, ".2f"),
+            "shippingMethodId": shipping_method.get("id", "") if shipping_method else "",
+            "shippingMethodName": shipping_method.get("name", "") if shipping_method else "",
+            "shippingPriceDOP": format(shipping_price, ".2f"),
+            "shippingDeliveryTime": shipping_method.get("deliveryTime", "") if shipping_method else "",
+            "shippingOrigin": shipping_method.get("origin", "") if shipping_method else "",
             "quantity": cantidad,
             "selectedSize": item.get("selectedSize"),
             "selectedColor": item.get("selectedColor"),
