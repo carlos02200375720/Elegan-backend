@@ -177,6 +177,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
         raise HTTPException(status_code=400, detail="CART_EMPTY")
 
     items = []
+    subtotal_dop = Decimal("0.00")
+    shipping_total_dop = Decimal("0.00")
     total_dop = Decimal("0.00")
     for item in carrito:
         product_id = str(item.get("productId") or "")
@@ -203,6 +205,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
         if shipping_id and shipping_method is None:
             raise HTTPException(status_code=409, detail="INVALID_SHIPPING_METHOD")
         shipping_price = _decimal_envio(shipping_method.get("price", 0)) if shipping_method else Decimal("0.00")
+        subtotal_dop += precio * cantidad
+        shipping_total_dop += shipping_price * cantidad
         total_dop += (precio + shipping_price) * cantidad
         items.append({
             "productId": product_id,
@@ -218,6 +222,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
             "selectedColor": item.get("selectedColor"),
         })
 
+    subtotal_dop = subtotal_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    shipping_total_dop = shipping_total_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     total_dop = total_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     total_usd = convertir_dop_a_usd(total_dop)
     datos_limpios = dict(datos)
@@ -243,6 +249,9 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
         "items": items,
         "itemCount": sum(item["quantity"] for item in items),
         "itemsSummary": ", ".join(f"{item['name']} x{item['quantity']}" for item in items),
+        "subtotalDOP": format(subtotal_dop, ".2f"),
+        "shippingTotalDOP": format(shipping_total_dop, ".2f"),
+        "total": format(total_dop, ".2f"),
         "totalDOP": format(total_dop, ".2f"),
         "totalUSD": format(total_usd, ".2f"),
         "exchangeRate": "60.00",
