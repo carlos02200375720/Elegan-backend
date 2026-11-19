@@ -8,6 +8,7 @@ class CarritoAgregar(BaseModel):
     quantity: StrictInt = 1
     selectedSize: str | None = None
     selectedColor: str | None = None
+    selectedShippingId: str | None = None
 
 
 class CarritoActualizar(BaseModel):
