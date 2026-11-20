@@ -147,6 +147,52 @@ def guardar_multimedia(
         raise HTTPException(status_code=500, detail="MEDIA_UPLOAD_FAILED") from error
 
 
+def guardar_comprobante_privado(archivo: UploadFile, nombre: str | None = None) -> dict:
+    """Guarda comprobantes en un bucket privado, separado del bucket público de catálogo."""
+    if not archivo:
+        raise HTTPException(status_code=400, detail="FILE_REQUIRED")
+    content_type = (archivo.content_type or "").lower()
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="PROOF_IMAGE_ONLY")
+    if not settings.gcs_private_bucket_name:
+        raise HTTPException(status_code=503, detail="PRIVATE_PROOF_STORAGE_NOT_CONFIGURED")
+    if archivo.size is not None and archivo.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PROOF_TOO_LARGE")
+
+    safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", nombre or archivo.filename or "comprobante")[:120]
+    object_name = f"comprobantes/{int(datetime.now(timezone.utc).timestamp() * 1000)}-{uuid4()}-{safe_name}"
+    blob = None
+    size = 0
+    try:
+        bucket = storage.Client().bucket(settings.gcs_private_bucket_name)
+        blob = bucket.blob(object_name)
+        blob.cache_control = "private, no-store, max-age=0"
+        blob.content_type = content_type
+        with blob.open("wb", chunk_size=TAMANO_BLOQUE) as destination:
+            while True:
+                chunk = archivo.file.read(TAMANO_BLOQUE)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > 10 * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail="PROOF_TOO_LARGE")
+                destination.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=422, detail="EMPTY_PROOF")
+        return {"objectName": object_name, "contentType": content_type, "size": size}
+    except HTTPException:
+        if blob is not None:
+            try:
+                blob.delete()
+            except Exception:
+                pass
+        raise
+    except GoogleAPIError as error:
+        raise HTTPException(status_code=502, detail="PRIVATE_PROOF_STORAGE_ERROR") from error
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="PRIVATE_PROOF_UPLOAD_FAILED") from error
+
+
 # Campos multimedia que pueden contener URLs u objectName de GCS.
 _CAMPOS_MULTIMEDIA = {
     "imageUrl", "images", "videoUrl", "videoPoster", "url",
