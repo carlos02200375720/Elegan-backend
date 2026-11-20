@@ -51,7 +51,7 @@ def _comentario_publico(documento: dict) -> dict:
     }
 
 
-def listar_comentarios(db: Any, product_id: str) -> dict:
+def listar_comentarios(db: Any, product_id: str, user_id: str = "") -> dict:
     clean_id = _validar_producto_publicado(db, product_id)
     coleccion = coleccion_comentarios(db)
     documentos = coleccion.find(
@@ -61,7 +61,7 @@ def listar_comentarios(db: Any, product_id: str) -> dict:
     items = [_comentario_publico(item) for item in documentos]
     return {
         "items": items,
-        "commentsCount": coleccion.count_documents({"productId": clean_id}),
+        "commentsCount": coleccion.count_documents(filtro),
     }
 
 
