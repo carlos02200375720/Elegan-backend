@@ -2,7 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from backend.modelo.autenticacion import GoogleEntrada, InicioSesionEntrada, RegistroEntrada
+from backend.modelo.autenticacion import (\n    GoogleEntrada, InicioSesionEntrada, RegistroEntrada,\n    SolicitarRecuperacionEntrada, RestablecerContrasenaEntrada,\n)
 from backend.logica.autenticacion import (
     crear_token,
     iniciar_sesion,
@@ -52,6 +52,16 @@ def registrar(datos: RegistroEntrada, db=Depends(obtener_db)):
 def login(datos: InicioSesionEntrada, db=Depends(obtener_db)):
     user = iniciar_sesion(db, str(datos.email), datos.password, "movil")
     return respuesta_autenticacion(user, "movil")
+
+
+@router_movil.post("/password/forgot")
+def recuperar_contrasena(datos: SolicitarRecuperacionEntrada, db=Depends(obtener_db)):
+    return solicitar_codigo_recuperacion(db, str(datos.email))
+
+
+@router_movil.post("/password/reset")
+def restablecer_clave(datos: RestablecerContrasenaEntrada, db=Depends(obtener_db)):
+    return restablecer_contrasena(db, str(datos.email), datos.code, datos.newPassword)
 
 
 @router_movil.post("/google")
