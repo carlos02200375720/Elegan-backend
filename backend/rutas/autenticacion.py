@@ -2,7 +2,10 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from backend.modelo.autenticacion import (\n    GoogleEntrada, InicioSesionEntrada, RegistroEntrada,\n    SolicitarRecuperacionEntrada, RestablecerContrasenaEntrada,\n)
+from backend.modelo.autenticacion import (
+    GoogleEntrada, InicioSesionEntrada, RegistroEntrada,
+    SolicitarRecuperacionEntrada, RestablecerContrasenaEntrada,
+)
 from backend.logica.autenticacion import (
     crear_token,
     iniciar_sesion,
@@ -11,6 +14,9 @@ from backend.logica.autenticacion import (
     usuario_publico,
     validar_acceso_admin,
     verificar_token,
+)
+from backend.logica.recuperacion_contrasena import (
+    solicitar_codigo_recuperacion, restablecer_contrasena,
 )
 
 router_movil = APIRouter(prefix="/api/movil/auth", tags=["Autenticación móvil"])
