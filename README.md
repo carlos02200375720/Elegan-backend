@@ -40,6 +40,17 @@ El registro público solo crea documentos en `users` con rol `customer`. Las cue
 
 Configura `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET` (mínimo 32 caracteres), `GOOGLE_WEB_CLIENT_ID` y `SUPER_ADMIN_EMAIL`. `GCS_BUCKET_NAME` se utiliza para multimedia pública del catálogo. Para comprobantes bancarios crea un bucket GCS separado y privado, configura `GCS_PRIVATE_BUCKET_NAME` en Cloud Run y concede a la cuenta de servicio del backend permisos `Storage Object Admin` únicamente sobre ese bucket privado. Copia `.env.example` a `.env` en desarrollo local y no subas secretos al repositorio. Para habilitar el acceso por correo y contraseña, configura `SUPER_ADMIN_PASSWORD` como secreto de Google Secret Manager y vincúlalo a Cloud Run con ese mismo nombre. Al arrancar, el backend crea el documento en `super-admins` si no existe; si existe sin `passwordHash`, agrega el hash Argon2. Si ya tiene contraseña, no la reemplaza. Si `SUPER_ADMIN_PASSWORD` está vacío, se conserva el acceso Google actual.
 
+## Pagos
+
+- `GET /api/movil/payments/bank-accounts`: cuentas bancarias activas disponibles para clientes autenticados.
+- `POST /api/movil/payments/orders`: crea un pedido por `bank_transfer` o `cash_on_delivery`; el servidor calcula los importes y valida el cupón.
+- `POST /api/movil/payments/orders/{order_id}/proof`: recibe una imagen de comprobante y la guarda en el bucket privado.
+- `/api/admin/bank-accounts`: administración de cuentas bancarias.
+- `PATCH /api/admin/orders/{order_id}/payment-review`: aprobar o rechazar comprobantes de transferencia.
+- `GET /api/admin/orders/{order_id}/proof`: sirve el comprobante solo a sesiones administrativas.
+
+Las transferencias quedan pendientes hasta la revisión administrativa. Los pedidos de transferencia sin comprobante vencen a las 24 horas y liberan el inventario reservado. Los pedidos contra entrega requieren la aceptación explícita del cliente.
+
 ## JWT
 
 Los tokens duran siete días y conservan el emisor `elegan-movil-api`. Los tokens móviles usan la audiencia `elegan-android`; los administrativos usan `elegan-admin`. Las rutas protegidas vuelven a consultar la cuenta en MongoDB y verifican su estado y rol.
