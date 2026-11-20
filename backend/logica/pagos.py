@@ -42,6 +42,10 @@ def _liberar_transferencias_vencidas(db: Any) -> None:
                 )
 
 
+def liberar_transferencias_vencidas(db: Any) -> None:
+    _liberar_transferencias_vencidas(db)
+
+
 def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
     try:
         amount = Decimal(str(value))
