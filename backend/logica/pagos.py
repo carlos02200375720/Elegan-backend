@@ -165,6 +165,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
 
     # Stock is reserved atomically per product; rollback prior reservations on failure.
     reserved = []
+    order_id = None
     try:
         for item in items:
             result = db[PRODUCTOS].update_one(
@@ -203,6 +204,8 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         order.pop("_id", None)
         return {"success": True, "order": {"id": order_id, **order}}
     except Exception:
+        if order_id:
+            db[ORDENES].delete_one({"_id": order_id})
         for item in reserved:
             db[PRODUCTOS].update_one({"_id": item["productId"]}, {"$inc": {"stock": item["quantity"]}})
         raise
