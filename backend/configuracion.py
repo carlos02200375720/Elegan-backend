@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     google_web_client_id: str = ""
     super_admin_email: str = ""
     super_admin_password: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "Elegan"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
