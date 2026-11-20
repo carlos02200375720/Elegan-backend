@@ -24,6 +24,10 @@ def inicializar_indices_ordenes(db: Any) -> None:
     coleccion.create_index(
         [("createdAt", DESCENDING)], name="idx_orders_created_at"
     )
+    coleccion.create_index(
+        [("paymentMethod", 1), ("paymentStatus", 1), ("expiresAt", 1)],
+        name="idx_orders_payment_expiration",
+    )
 
 
 def formatear_orden(documento: dict) -> dict:
