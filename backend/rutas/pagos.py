@@ -29,6 +29,11 @@ def crear_orden(datos: dict, user=Depends(usuario_actual), db=Depends(obtener_db
 @router_movil_pagos.post("/orders/{order_id}/proof", status_code=201)
 def subir_comprobante(order_id: str, archivo: UploadFile = File(..., alias="file"),
                       user=Depends(usuario_actual), db=Depends(obtener_db)):
+    order = db["orders"].find_one({"_id": order_id, "userId": str(user["_id"])})
+    if order is None:
+        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+    if order.get("paymentMethod") != "bank_transfer" or order.get("paymentStatus") not in ("awaiting_proof", "proof_rejected"):
+        raise HTTPException(status_code=409, detail="PROOF_NOT_ALLOWED")
     if archivo.content_type not in ("image/jpeg", "image/png", "image/webp"):
         raise HTTPException(status_code=415, detail="PROOF_IMAGE_ONLY")
     if archivo.size is not None and archivo.size > 10 * 1024 * 1024:
