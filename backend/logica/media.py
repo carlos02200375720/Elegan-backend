@@ -188,6 +188,11 @@ def guardar_comprobante_privado(archivo: UploadFile, nombre: str | None = None) 
                 pass
         raise
     except GoogleAPIError as error:
+        if blob is not None:
+            try:
+                blob.delete()
+            except Exception:
+                pass
         raise HTTPException(status_code=502, detail="PRIVATE_PROOF_STORAGE_ERROR") from error
     except Exception as error:
         raise HTTPException(status_code=500, detail="PRIVATE_PROOF_UPLOAD_FAILED") from error
