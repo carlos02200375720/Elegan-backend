@@ -116,10 +116,21 @@ def calcular_descuento_cupon(db: Any, codigo: str, subtotal: Decimal) -> tuple[d
     return cupon, descuento
 
 
-def validar_cupon_cliente(db: Any, codigo: str, subtotal_raw: Any) -> dict:
-    subtotal = Decimal(str(subtotal_raw)).quantize(CENTAVO, rounding=ROUND_HALF_UP)
-    if not subtotal.is_finite() or subtotal <= 0:
-        raise HTTPException(status_code=400, detail="INVALID_ORDER_SUBTOTAL")
+def validar_cupon_cliente(db: Any, codigo: str, user_id: str) -> dict:
+    carrito = list(db["cart"].find({"userId": str(user_id)}))
+    if not carrito:
+        raise HTTPException(status_code=400, detail="CART_EMPTY")
+    subtotal = Decimal("0.00")
+    for item in carrito:
+        cantidad = item.get("quantity")
+        product_id = str(item.get("productId") or "")
+        if not product_id or isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad < 1:
+            raise HTTPException(status_code=409, detail="INVALID_CART_ITEM")
+        producto = db["products"].find_one({"_id": product_id})
+        if producto is None:
+            raise HTTPException(status_code=409, detail="PRODUCT_NOT_FOUND")
+        subtotal += _importe(producto.get("price")) * cantidad
+    subtotal = subtotal.quantize(CENTAVO, rounding=ROUND_HALF_UP)
     cupon, descuento = calcular_descuento_cupon(db, codigo, subtotal)
     return {
         "valid": True,
