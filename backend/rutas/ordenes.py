@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
-from backend.modelo.ordenes import OrdenActualizarEstado, OrdenCrear
+from backend.modelo.ordenes import OrdenActualizarEstado
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db, usuario_actual
 from backend.logica.ordenes import (
@@ -23,17 +23,6 @@ def listar_ordenes_movil(
     user=Depends(usuario_actual), db=Depends(obtener_db)
 ):
     return listar_ordenes(db, user, solo_usuario=True)
-
-
-@router_movil_ordenes.post("", status_code=410)
-def crear_orden_movil(
-    datos: OrdenCrear,
-    user=Depends(usuario_actual),
-):
-    raise HTTPException(
-        status_code=410,
-        detail="PAYMENT_REQUIRED_USE_PAYPAL_CHECKOUT",
-    )
 
 
 @router_admin_ordenes.get("")
