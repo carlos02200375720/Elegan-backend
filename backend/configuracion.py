@@ -13,10 +13,6 @@ class Settings(BaseSettings):
     google_web_client_id: str = ""
     super_admin_email: str = ""
     super_admin_password: str = ""
-    paypal_client_id: str = ""
-    paypal_client_secret: str = ""
-    paypal_mode: str = "sandbox"
-    paypal_fixed_dop_per_usd: Decimal = Decimal("60.00")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
