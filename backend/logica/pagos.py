@@ -211,18 +211,18 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         raise
 
 
-def adjuntar_comprobante(db: Any, user: dict, order_id: str, proof_url: str) -> dict:
+def adjuntar_comprobante(db: Any, user: dict, order_id: str, proof_object_name: str) -> dict:
     _liberar_transferencias_vencidas(db)
     order = db[ORDENES].find_one({"_id": order_id, "userId": str(user["_id"])})
     if order is None:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
     if order.get("paymentMethod") != "bank_transfer" or order.get("paymentStatus") not in ("awaiting_proof", "proof_rejected"):
         raise HTTPException(status_code=409, detail="PROOF_NOT_ALLOWED")
-    if not proof_url.startswith("https://storage.googleapis.com/"):
-        raise HTTPException(status_code=400, detail="INVALID_PROOF_URL")
+    if not proof_object_name.startswith("comprobantes/"):
+        raise HTTPException(status_code=400, detail="INVALID_PROOF_OBJECT")
     now = datetime.now(timezone.utc)
     db[ORDENES].update_one({"_id": order_id}, {"$set": {
-        "paymentProofUrl": proof_url, "paymentStatus": "proof_submitted",
+        "paymentProofObjectName": proof_object_name, "paymentStatus": "proof_submitted",
         "status": "pendiente_validacion", "proofSubmittedAt": now, "updatedAt": now,
     }})
     return {"success": True, "id": order_id, "paymentStatus": "proof_submitted"}
