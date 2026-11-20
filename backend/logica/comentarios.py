@@ -54,9 +54,14 @@ def _comentario_publico(documento: dict) -> dict:
 def listar_comentarios(db: Any, product_id: str, user_id: str = "") -> dict:
     clean_id = _validar_producto_publicado(db, product_id)
     coleccion = coleccion_comentarios(db)
-    documentos = coleccion.find(
-        {"productId": clean_id}
-    ).sort("createdAt", DESCENDING).limit(200)
+    blocked_ids = [
+        str(item.get("blockedUserId", ""))
+        for item in db["blocked_users"].find(
+            {"userId": user_id}, {"blockedUserId": 1}
+        )
+    ] if user_id else []
+    filtro = {"productId": clean_id, "userId": {"$nin": blocked_ids}}
+    documentos = coleccion.find(filtro).sort("createdAt", DESCENDING).limit(200)
 
     items = [_comentario_publico(item) for item in documentos]
     return {
