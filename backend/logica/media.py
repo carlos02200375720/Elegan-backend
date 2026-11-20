@@ -272,7 +272,7 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
         bucket = storage.Client().bucket(settings.gcs_bucket_name)
         for nombre_objeto in nombres_objeto:
             # Los uploads de esta API se guardan bajo estos prefijos.
-            if not (nombre_objeto.startswith("movil/") or nombre_objeto.startswith("admin/")):
+            if not (nombre_objeto.startswith("movil/") or nombre_objeto.startswith("admin/") or nombre_objeto.startswith("soporte/")):
                 continue
             try:
                 bucket.blob(nombre_objeto).delete()
