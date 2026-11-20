@@ -10,6 +10,7 @@ from backend.conexión.mongodb import create_mongodb_client, get_database
 from backend.rutas.anuncios import router_admin_anuncios, router_movil_anuncios
 from backend.rutas.carrito import router_movil_carrito
 from backend.rutas.autenticacion import router_admin, router_movil
+from backend.rutas.cuenta import router_movil_cuenta
 from backend.rutas.productos import router_admin_productos, router_movil_productos
 from backend.rutas.categorias import router_admin_categorias, router_movil_categorias
 from backend.rutas.productos_guardados import router_movil_productos_guardados
@@ -108,6 +109,7 @@ if settings.cors_origins_list:
     )
 
 app.include_router(router_movil)
+app.include_router(router_movil_cuenta)
 app.include_router(router_admin)
 app.include_router(router_movil_productos)
 app.include_router(router_admin_productos)
