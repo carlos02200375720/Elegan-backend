@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.middleware.autorizacion import requerir_administrador
@@ -32,6 +34,8 @@ def subir_comprobante(order_id: str, archivo: UploadFile = File(..., alias="file
     order = db["orders"].find_one({"_id": order_id, "userId": str(user["_id"])})
     if order is None:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+    if order.get("expiresAt") and order["expiresAt"] <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=409, detail="PROOF_EXPIRED")
     if order.get("paymentMethod") != "bank_transfer" or order.get("paymentStatus") not in ("awaiting_proof", "proof_rejected"):
         raise HTTPException(status_code=409, detail="PROOF_NOT_ALLOWED")
     if archivo.content_type not in ("image/jpeg", "image/png", "image/webp"):
