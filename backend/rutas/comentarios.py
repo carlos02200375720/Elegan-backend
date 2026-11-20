@@ -16,7 +16,7 @@ def obtener_comentarios(
     user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
-    return listar_comentarios(db, product_id)
+    return listar_comentarios(db, product_id, str(user["_id"]))
 
 
 @router_movil_comentarios.post("/{product_id}", status_code=201)
