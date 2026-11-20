@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -28,7 +26,6 @@ router_movil_cupones = APIRouter(
 class CuponValidar(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str = Field(min_length=2, max_length=40)
-    subtotalDOP: Decimal = Field(gt=0)
 
 
 @router_admin_cupones.get("")
@@ -56,7 +53,7 @@ def eliminar_cupon_admin(codigo: str, db=Depends(obtener_db)):
 @router_movil_cupones.post("/validate")
 def validar_cupon_movil(
     datos: CuponValidar,
-    _user=Depends(usuario_actual),
+    user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
-    return validar_cupon_cliente(db, datos.code, datos.subtotalDOP)
+    return validar_cupon_cliente(db, datos.code, str(user["_id"]))
