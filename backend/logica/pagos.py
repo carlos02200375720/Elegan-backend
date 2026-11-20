@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 from uuid import uuid4
@@ -16,6 +16,29 @@ CENTAVO = Decimal("0.01")
 def inicializar_indices_cuentas_bancarias(db: Any) -> None:
     db[CUENTAS].create_index([("id", ASCENDING)], unique=True, name="idx_bank_accounts_id")
     db[CUENTAS].create_index([("isActive", ASCENDING)], name="idx_bank_accounts_active")
+
+
+def _liberar_transferencias_vencidas(db: Any) -> None:
+    now = datetime.now(timezone.utc)
+    expired = db[ORDENES].find({
+        "paymentMethod": "bank_transfer",
+        "paymentStatus": {"$in": ["awaiting_proof", "proof_rejected"]},
+        "inventoryReserved": True,
+        "expiresAt": {"$lte": now},
+    })
+    for order in expired:
+        changed = db[ORDENES].update_one(
+            {"_id": order["_id"], "inventoryReserved": True,
+             "paymentStatus": {"$in": ["awaiting_proof", "proof_rejected"]}},
+            {"$set": {"paymentStatus": "expired", "status": "cancelado",
+                      "inventoryReserved": False, "updatedAt": now}},
+        )
+        if changed.modified_count:
+            for item in order.get("items", []):
+                db[PRODUCTOS].update_one(
+                    {"_id": item["productId"]},
+                    {"$inc": {"stock": int(item["quantity"])}},
+                )
 
 
 def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
@@ -88,6 +111,7 @@ def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
 
 
 def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
+    _liberar_transferencias_vencidas(db)
     method = str(data.get("paymentMethod") or "").strip().lower()
     if method not in ("bank_transfer", "cash_on_delivery"):
         raise HTTPException(status_code=400, detail="INVALID_PAYMENT_METHOD")
@@ -165,6 +189,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "status": "pendiente_pago" if method == "bank_transfer" else "pendiente_confirmacion",
             "cashOnDeliveryAccepted": method == "cash_on_delivery",
             "cashOnDeliveryAcceptedAt": now if method == "cash_on_delivery" else None,
+            "expiresAt": now + timedelta(hours=24) if method == "bank_transfer" else None,
             "bankAccount": {"id": account["id"], "bankName": account["bankName"],
                             "accountNumber": account["accountNumber"], "accountType": account["accountType"],
                             "holderName": account["holderName"], "holderDocument": account.get("holderDocument", "")} if account else None,
@@ -184,6 +209,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
 
 
 def adjuntar_comprobante(db: Any, user: dict, order_id: str, proof_url: str) -> dict:
+    _liberar_transferencias_vencidas(db)
     order = db[ORDENES].find_one({"_id": order_id, "userId": str(user["_id"])})
     if order is None:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
