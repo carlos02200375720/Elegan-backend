@@ -48,15 +48,18 @@ def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
     if existente.get("paymentStatus") in ("pending", "awaiting_proof", "proof_submitted", "proof_rejected"):
         raise HTTPException(status_code=409, detail="ORDER_PAYMENT_PENDING")
 
-    resultado = coleccion.update_one(
-        {"_id": order_id},
-        {
-            "$set": {
-                "status": status,
-                "updatedAt": datetime.now(timezone.utc),
-            }
-        },
-    )
+    cambios = {"status": status, "updatedAt": datetime.now(timezone.utc)}
+    liberar_stock = status == "cancelado" and existente.get("inventoryReserved") is True
+    if liberar_stock or status in ("enviado", "entregado"):
+        cambios["inventoryReserved"] = False
+    resultado = coleccion.update_one({"_id": order_id}, {"$set": cambios})
+    if resultado.modified_count and liberar_stock:
+        for item in existente.get("items", []):
+            coleccion_productos = db["products"]
+            coleccion_productos.update_one(
+                {"_id": item.get("productId")},
+                {"$inc": {"stock": int(item.get("quantity", 0))}},
+            )
     if resultado.matched_count == 0:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
 
