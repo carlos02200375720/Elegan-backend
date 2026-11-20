@@ -53,7 +53,7 @@ def bloquear_usuario(db: Any, user: dict, blocked_user_id: str) -> dict:
     target_id = blocked_user_id.strip()
     if not target_id or target_id == owner_id:
         raise HTTPException(status_code=400, detail="INVALID_BLOCK_TARGET")
-    if db["users"].find_one({"_id": target_id}, {"_id": 1}) is None:
+    if (db["usuarios"].find_one({"_id": target_id}, {"_id": 1}) or db["super-admins"].find_one({"_id": target_id}, {"_id": 1})) is None:
         raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
     db["blocked_users"].update_one(
         {"userId": owner_id, "blockedUserId": target_id},
