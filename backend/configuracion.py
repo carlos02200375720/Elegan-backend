@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     mongodb_uri: str = ""
     mongodb_database: str = "elegan"
     gcs_bucket_name: str = ""
+    gcs_private_bucket_name: str = ""
     jwt_secret: str = ""
     google_web_client_id: str = ""
     super_admin_email: str = ""
