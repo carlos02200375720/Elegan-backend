@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 from fastapi import HTTPException
 
 from backend.configuracion import settings
+from backend.logica.cupones import calcular_descuento_cupon
 
 DOP_POR_USD = Decimal("60.00")
 CENTAVO_USD = Decimal("0.01")
@@ -225,11 +226,18 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
     subtotal_dop = subtotal_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     shipping_total_dop = shipping_total_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     total_dop = total_dop.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    codigo_cupon = str(datos.get("couponCode") or "").strip().upper()
+    descuento_cupon = Decimal("0.00")
+    if codigo_cupon:
+        cupon, descuento_cupon = calcular_descuento_cupon(db, codigo_cupon, subtotal_dop)
+        total_dop = (total_dop - descuento_cupon).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    else:
+        cupon = None
     total_usd = convertir_dop_a_usd(total_dop)
     datos_limpios = dict(datos)
     for campo in (
         "_id", "userId", "role", "createdAt", "updatedAt", "total",
-        "totalDOP", "totalUSD", "status", "paymentStatus", "paypalOrderId",
+        "totalDOP", "totalUSD", "status", "paymentStatus", "paypalOrderId", "couponCode", "coupon_code", "discountAmountDOP",
         "items", "itemCount", "itemsSummary", "exchangeRate",
     ):
         datos_limpios.pop(campo, None)
@@ -251,6 +259,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
         "itemsSummary": ", ".join(f"{item['name']} x{item['quantity']}" for item in items),
         "subtotalDOP": format(subtotal_dop, ".2f"),
         "shippingTotalDOP": format(shipping_total_dop, ".2f"),
+        "couponCode": cupon["code"] if cupon else "",
+        "couponDiscountDOP": format(descuento_cupon, ".2f"),
         "total": format(total_dop, ".2f"),
         "totalDOP": format(total_dop, ".2f"),
         "totalUSD": format(total_usd, ".2f"),
@@ -301,6 +311,8 @@ def crear_pago_paypal(db: Any, user: dict, datos: dict) -> dict:
             "paypalOrderId": paypal_id,
             "approvalUrl": approval_url,
             "amountDOP": format(total_dop, ".2f"),
+            "discountAmountDOP": format(descuento_cupon, ".2f"),
+            "couponCode": cupon["code"] if cupon else "",
             "amountUSD": format(total_usd, ".2f"),
             "currency": "USD",
             "exchangeRate": "60.00",
