@@ -232,6 +232,8 @@ def revisar_pago_transferencia(db: Any, order_id: str, approved: bool, note: str
     order = db[ORDENES].find_one({"_id": order_id})
     if order is None:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+    if order.get("status") == "cancelado":
+        raise HTTPException(status_code=409, detail="ORDER_CANCELLED")
     if order.get("paymentMethod") != "bank_transfer" or order.get("paymentStatus") != "proof_submitted":
         raise HTTPException(status_code=409, detail="PAYMENT_NOT_REVIEWABLE")
     now = datetime.now(timezone.utc)
