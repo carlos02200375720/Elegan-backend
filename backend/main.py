@@ -17,7 +17,7 @@ from backend.rutas.likes import router_movil_likes
 from backend.rutas.compartidos import router_movil_compartidos
 from backend.rutas.comentarios import router_movil_comentarios
 from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
-from backend.rutas.pagos import router_movil_pagos
+from backend.rutas.pagos import router_movil_pagos, router_admin_cuentas, router_admin_pagos
 from backend.rutas.cupones import router_admin_cupones, router_movil_cupones
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
@@ -31,6 +31,7 @@ from backend.logica.compartidos import inicializar_indices_compartidos
 from backend.logica.comentarios import inicializar_indices_comentarios
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
+from backend.logica.pagos import inicializar_indices_cuentas_bancarias
 from backend.logica.mensajes import inicializar_indices_mensajes
 from backend.logica.autenticacion import inicializar_super_admin
 
@@ -68,6 +69,7 @@ async def lifespan(application: FastAPI):
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
         inicializar_indices_cupones(database)
+        inicializar_indices_cuentas_bancarias(database)
         inicializar_indices_mensajes(database)
 
         application.state.mongodb_client = mongo_client
@@ -119,6 +121,8 @@ app.include_router(router_movil_compartidos)
 app.include_router(router_movil_comentarios)
 app.include_router(router_movil_carrito)
 app.include_router(router_movil_pagos)
+app.include_router(router_admin_cuentas)
+app.include_router(router_admin_pagos)
 app.include_router(router_admin_cupones)
 app.include_router(router_movil_cupones)
 app.include_router(router_movil_ordenes)
