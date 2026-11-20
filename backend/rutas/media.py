@@ -36,3 +36,13 @@ def subir_multimedia_admin(
     nombre: str | None = Form(default=None, alias="name"),
 ):
     return guardar_multimedia(archivo, nombre, "admin")
+
+
+@router_movil_media.post("/support", status_code=201)
+def subir_adjunto_soporte(
+    archivo: UploadFile = File(..., alias="file"),
+    nombre: str | None = Form(default=None, alias="name"),
+    _user=Depends(usuario_actual),
+):
+    """Permite a cualquier cliente autenticado adjuntar fotos/videos al chat de soporte."""
+    return guardar_multimedia(archivo, nombre, "soporte")
