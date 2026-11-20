@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from backend.rutas.autenticacion import obtener_db, usuario_actual, usuario_actual_admin
 from backend.logica.moderacion import (
     actualizar_reporte,
+    eliminar_comentario_reportado,
     bloquear_usuario,
     listar_reportes,
     reportar_comentario,
@@ -57,3 +58,13 @@ def cambiar_estado_reporte(
     db=Depends(obtener_db),
 ):
     return actualizar_reporte(db, report_id, datos.status)
+
+
+
+@router_admin_moderacion.delete("/comments/{comment_id}")
+def eliminar_comentario(
+    comment_id: str,
+    _admin=Depends(usuario_actual_admin),
+    db=Depends(obtener_db),
+):
+    return eliminar_comentario_reportado(db, comment_id)
