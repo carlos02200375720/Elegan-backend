@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
+from google.api_core.exceptions import NotFound
+from google.cloud import storage
+
+from backend.configuracion import settings
 
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db, usuario_actual
@@ -9,7 +14,7 @@ from backend.logica.pagos import (
     crear_orden_pago, eliminar_cuenta_bancaria, listar_cuentas_bancarias,
     revisar_pago_transferencia,
 )
-from backend.logica.media import guardar_multimedia
+from backend.logica.media import guardar_comprobante_privado
 
 router_movil_pagos = APIRouter(prefix="/api/movil/payments", tags=["Pagos móviles"])
 router_admin_cuentas = APIRouter(prefix="/api/admin/bank-accounts", tags=["Cuentas bancarias"],
@@ -42,8 +47,8 @@ def subir_comprobante(order_id: str, archivo: UploadFile = File(..., alias="file
         raise HTTPException(status_code=415, detail="PROOF_IMAGE_ONLY")
     if archivo.size is not None and archivo.size > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="PROOF_TOO_LARGE")
-    saved = guardar_multimedia(archivo, f"comprobante-{order_id}", "comprobantes")
-    return adjuntar_comprobante(db, user, order_id, saved["url"])
+    saved = guardar_comprobante_privado(archivo, f"comprobante-{order_id}")
+    return adjuntar_comprobante(db, user, order_id, saved["objectName"])
 
 
 @router_admin_cuentas.get("")
@@ -74,3 +79,24 @@ def revisar_pago(order_id: str, datos: dict, db=Depends(obtener_db),
     if not isinstance(approved, bool):
         raise HTTPException(status_code=400, detail="APPROVED_BOOLEAN_REQUIRED")
     return revisar_pago_transferencia(db, order_id, approved, datos.get("note", ""))
+
+
+@router_admin_pagos.get("/{order_id}/proof")
+def ver_comprobante(order_id: str, db=Depends(obtener_db), _user=Depends(requerir_administrador)):
+    order = db["orders"].find_one({"_id": order_id})
+    if order is None:
+        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+    object_name = str(order.get("paymentProofObjectName") or "")
+    if not object_name or not settings.gcs_private_bucket_name:
+        raise HTTPException(status_code=404, detail="PROOF_NOT_FOUND")
+    blob = storage.Client().bucket(settings.gcs_private_bucket_name).blob(object_name)
+    try:
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="PROOF_NOT_FOUND")
+        return StreamingResponse(
+            blob.open("rb"),
+            media_type=blob.content_type or "application/octet-stream",
+            headers={"Cache-Control": "private, no-store"},
+        )
+    except NotFound as error:
+        raise HTTPException(status_code=404, detail="PROOF_NOT_FOUND") from error
