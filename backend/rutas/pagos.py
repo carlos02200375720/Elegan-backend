@@ -93,6 +93,7 @@ def ver_comprobante(order_id: str, db=Depends(obtener_db), _user=Depends(requeri
     try:
         if not blob.exists():
             raise HTTPException(status_code=404, detail="PROOF_NOT_FOUND")
+        blob.reload()
         def stream_object():
             with blob.open("rb") as source:
                 while True:
