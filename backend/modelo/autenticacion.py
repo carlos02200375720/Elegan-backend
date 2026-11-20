@@ -20,5 +20,15 @@ class InicioSesionEntrada(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class SolicitarRecuperacionEntrada(BaseModel):
+    email: EmailStr
+
+
+class RestablecerContrasenaEntrada(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+    newPassword: str = Field(min_length=8, max_length=128)
+
+
 class GoogleEntrada(BaseModel):
     idToken: str = Field(min_length=1)
