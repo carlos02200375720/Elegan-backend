@@ -93,8 +93,16 @@ def ver_comprobante(order_id: str, db=Depends(obtener_db), _user=Depends(requeri
     try:
         if not blob.exists():
             raise HTTPException(status_code=404, detail="PROOF_NOT_FOUND")
+        def stream_object():
+            with blob.open("rb") as source:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+
         return StreamingResponse(
-            blob.open("rb"),
+            stream_object(),
             media_type=blob.content_type or "application/octet-stream",
             headers={"Cache-Control": "private, no-store"},
         )
