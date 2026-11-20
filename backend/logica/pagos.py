@@ -11,6 +11,7 @@ ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
 CENTAVO = Decimal("0.01")
+COD_TERMS_VERSION = "2026-11-19"
 
 
 def inicializar_indices_cuentas_bancarias(db: Any) -> None:
@@ -115,7 +116,10 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     method = str(data.get("paymentMethod") or "").strip().lower()
     if method not in ("bank_transfer", "cash_on_delivery"):
         raise HTTPException(status_code=400, detail="INVALID_PAYMENT_METHOD")
-    if method == "cash_on_delivery" and data.get("cashOnDeliveryAccepted") is not True:
+    if method == "cash_on_delivery" and (
+        data.get("cashOnDeliveryAccepted") is not True
+        or data.get("cashOnDeliveryTermsVersion") != COD_TERMS_VERSION
+    ):
         raise HTTPException(status_code=400, detail="COD_TERMS_NOT_ACCEPTED")
 
     account = None
@@ -189,6 +193,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "paymentMethod": method, "paymentStatus": "awaiting_proof" if method == "bank_transfer" else "cash_on_delivery",
             "status": "pendiente_pago" if method == "bank_transfer" else "pendiente_confirmacion",
             "cashOnDeliveryAccepted": method == "cash_on_delivery",
+            "cashOnDeliveryTermsVersion": COD_TERMS_VERSION if method == "cash_on_delivery" else None,
             "cashOnDeliveryAcceptedAt": now if method == "cash_on_delivery" else None,
             "expiresAt": now + timedelta(hours=24) if method == "bank_transfer" else None,
             "bankAccount": {"id": account["id"], "bankName": account["bankName"],
