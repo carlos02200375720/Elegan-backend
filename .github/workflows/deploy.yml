@@ -8,7 +8,6 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-east1
-  GCS_PRIVATE_BUCKET_NAME: ${{ secrets.GCS_PRIVATE_BUCKET_NAME }}
   SERVICE_NAME: elegan-backend
   IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/elegan-backend:${{ github.sha }}
 
@@ -34,7 +33,6 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PROJECT_ID" || { echo "::error::Falta el secreto GCP_PROJECT_ID"; exit 1; }
-          test -n "$GCS_PRIVATE_BUCKET_NAME" || { echo "::error::Falta el secreto GCS_PRIVATE_BUCKET_NAME (bucket privado de comprobantes)"; exit 1; }
           gcloud config set project "$PROJECT_ID"
 
       - name: Build and publish container image
@@ -75,7 +73,6 @@ jobs:
               --service-account "elegan-cuenta-servicio@carlos-garcia-509521.iam.gserviceaccount.com" \
               --platform managed \
               --allow-unauthenticated \
-              --update-env-vars "GCS_PRIVATE_BUCKET_NAME=$GCS_PRIVATE_BUCKET_NAME" \
               --project "$PROJECT_ID" \
               --quiet >"$output_file" 2>&1; then
               cat "$output_file"
