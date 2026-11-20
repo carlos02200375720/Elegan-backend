@@ -56,10 +56,15 @@ def solicitar_codigo_recuperacion(db, email: str) -> dict:
     tokens.create_index("expiresAt", expireAfterSeconds=0, name="idx_password_reset_expiry")
     tokens.create_index("email", unique=True, name="idx_password_reset_email_unique")
     existente = tokens.find_one({"email": correo})
-    if existente and existente.get("createdAt") and existente["createdAt"] > ahora - timedelta(minutes=1):
-        return respuesta
+    creado = existente.get("createdAt") if existente else None
+    if creado:
+        if creado.tzinfo is None:
+            creado = creado.replace(tzinfo=timezone.utc)
+        if creado > ahora - timedelta(minutes=1):
+            return respuesta
 
     codigo = f"{secrets.randbelow(1_000_000):06d}"
+    _enviar_codigo(correo, codigo)
     tokens.update_one(
         {"email": correo},
         {"$set": {
@@ -72,7 +77,6 @@ def solicitar_codigo_recuperacion(db, email: str) -> dict:
         }},
         upsert=True,
     )
-    _enviar_codigo(correo, codigo)
     return respuesta
 
 
@@ -81,7 +85,10 @@ def restablecer_contrasena(db, email: str, codigo: str, nueva_contrasena: str) -
     tokens = db[COLECCION]
     registro = tokens.find_one({"email": correo})
     ahora = datetime.now(timezone.utc)
-    if not registro or registro.get("expiresAt") <= ahora or registro.get("attempts", 0) >= 5:
+    expiracion = registro.get("expiresAt") if registro else None
+    if expiracion and expiracion.tzinfo is None:
+        expiracion = expiracion.replace(tzinfo=timezone.utc)
+    if not registro or not expiracion or expiracion <= ahora or registro.get("attempts", 0) >= 5:
         raise HTTPException(status_code=400, detail="INVALID_OR_EXPIRED_RESET_CODE")
 
     hash_codigo = hashlib.sha256(codigo.encode("utf-8")).hexdigest()
