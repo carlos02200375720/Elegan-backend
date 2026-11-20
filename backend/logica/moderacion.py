@@ -97,3 +97,15 @@ def actualizar_reporte(db: Any, report_id: str, status: str) -> dict:
     if not result.matched_count:
         raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
     return {"success": True, "status": status}
+
+
+
+def eliminar_comentario_reportado(db: Any, comment_id: str) -> dict:
+    resultado = db["comments"].delete_one({"_id": comment_id})
+    if not resultado.deleted_count:
+        raise HTTPException(status_code=404, detail="COMMENT_NOT_FOUND")
+    db["comment_reports"].update_many(
+        {"commentId": comment_id, "status": "pending"},
+        {"$set": {"status": "reviewed", "updatedAt": datetime.now(timezone.utc)}},
+    )
+    return {"success": True}
