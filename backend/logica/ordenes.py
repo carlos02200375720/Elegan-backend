@@ -24,12 +24,6 @@ def inicializar_indices_ordenes(db: Any) -> None:
     coleccion.create_index(
         [("createdAt", DESCENDING)], name="idx_orders_created_at"
     )
-    coleccion.create_index(
-        [("paypalOrderId", 1)],
-        name="idx_orders_paypal_order_id",
-        unique=True,
-        sparse=True,
-    )
 
 
 def formatear_orden(documento: dict) -> dict:
