@@ -44,7 +44,7 @@ def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
     if existente is None:
         raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
     if existente.get("paymentMethod") == "bank_transfer" and existente.get("paymentStatus") != "verified":
-        raise HTTPException(status_code=409, detail="TRANSFERMENT_NOT_VERIFIED")
+        raise HTTPException(status_code=409, detail="TRANSFER_NOT_VERIFIED")
     if existente.get("paymentStatus") in ("pending", "awaiting_proof", "proof_submitted", "proof_rejected"):
         raise HTTPException(status_code=409, detail="ORDER_PAYMENT_PENDING")
 
