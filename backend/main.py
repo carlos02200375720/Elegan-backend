@@ -17,6 +17,8 @@ from backend.rutas.productos_guardados import router_movil_productos_guardados
 from backend.rutas.likes import router_movil_likes
 from backend.rutas.compartidos import router_movil_compartidos
 from backend.rutas.comentarios import router_movil_comentarios
+from backend.rutas.moderacion import router_movil_moderacion, router_admin_moderacion
+from backend.rutas.legal import router_movil_legal, router_admin_legal
 from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
 from backend.rutas.pagos import router_movil_pagos, router_admin_cuentas, router_admin_pagos
 from backend.rutas.cupones import router_admin_cupones, router_movil_cupones
@@ -30,6 +32,7 @@ from backend.logica.productos_guardados import inicializar_indices_guardadas
 from backend.logica.likes import inicializar_indices_likes
 from backend.logica.compartidos import inicializar_indices_compartidos
 from backend.logica.comentarios import inicializar_indices_comentarios
+from backend.logica.moderacion import inicializar_indices_moderacion
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
 from backend.logica.pagos import inicializar_indices_cuentas_bancarias
@@ -67,6 +70,7 @@ async def lifespan(application: FastAPI):
         inicializar_indices_likes(database)
         inicializar_indices_compartidos(database)
         inicializar_indices_comentarios(database)
+        inicializar_indices_moderacion(database)
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
         inicializar_indices_cupones(database)
@@ -121,6 +125,10 @@ app.include_router(router_movil_productos_guardados)
 app.include_router(router_movil_likes)
 app.include_router(router_movil_compartidos)
 app.include_router(router_movil_comentarios)
+app.include_router(router_movil_moderacion)
+app.include_router(router_admin_moderacion)
+app.include_router(router_movil_legal)
+app.include_router(router_admin_legal)
 app.include_router(router_movil_carrito)
 app.include_router(router_movil_pagos)
 app.include_router(router_admin_cuentas)
