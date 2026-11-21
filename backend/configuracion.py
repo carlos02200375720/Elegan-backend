@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_env: str = "development"
+    sentry_dsn: str = "https://473f778d2802645a4ee73fdffcca422d@o4512465456070656.ingest.us.sentry.io/4512467013009408"
     cors_origins: str = ""
     mongodb_uri: str = ""
     mongodb_database: str = "elegan"
