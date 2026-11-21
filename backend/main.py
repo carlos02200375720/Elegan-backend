@@ -1,4 +1,7 @@
 import logging
+from urllib.parse import urlsplit, urlunsplit
+
+import sentry_sdk
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -40,6 +43,38 @@ from backend.logica.mensajes import inicializar_indices_mensajes
 from backend.logica.autenticacion import inicializar_super_admin
 
 logger = logging.getLogger("elegan")
+
+
+def _sanitizar_evento_sentry(event, hint):
+    """Evita enviar datos personales o credenciales de las solicitudes a Sentry."""
+    event.pop("user", None)
+    request = event.get("request")
+    if isinstance(request, dict):
+        request.pop("data", None)
+        request.pop("cookies", None)
+        request.pop("query_string", None)
+        headers = request.get("headers")
+        if isinstance(headers, dict):
+            request["headers"] = {
+                key: value
+                for key, value in headers.items()
+                if key.lower() not in {"authorization", "cookie", "set-cookie"}
+            }
+        url = request.get("url")
+        if isinstance(url, str):
+            parsed = urlsplit(url)
+            request["url"] = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+    return event
+
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.app_env,
+        send_default_pii=False,
+        traces_sample_rate=0.1,
+        before_send=_sanitizar_evento_sentry,
+    )
 
 
 @asynccontextmanager
