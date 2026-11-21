@@ -8,3 +8,4 @@ PyJWT>=2.10,<3
 argon2-cffi>=23.1,<26
 google-auth>=2.38,<3
 python-multipart>=0.0.20,<1
+sentry-sdk[fastapi]>=2.0,<3
