@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from backend.modelo.productos import ProductoActualizar, ProductoCrear
 from backend.middleware.autorizacion import requerir_administrador
@@ -9,6 +9,7 @@ from backend.logica.productos import (
     eliminar_producto,
     listar_productos,
     obtener_producto,
+    recomendar_productos,
 )
 
 router_movil_productos = APIRouter(
@@ -29,6 +30,16 @@ def listar_productos_movil(db=Depends(obtener_db)):
         solo_publicados=True,
         incluir_conteo_comentarios=True,
     )
+
+
+
+@router_movil_productos.get("/{product_id}/recommended")
+def recomendar_productos_movil(
+    product_id: str,
+    limit: int = Query(default=12, ge=1, le=30),
+    db=Depends(obtener_db),
+):
+    return recomendar_productos(db, product_id, limit)
 
 
 @router_movil_productos.get("/{product_id}")
