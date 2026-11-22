@@ -10,6 +10,7 @@ from backend.logica.pagos_contraentrega import (
     COD_TERMS_VERSION, obtener_configuracion_contraentrega,
 )
 
+CUENTAS = "bank_accounts"
 ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
