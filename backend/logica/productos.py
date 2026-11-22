@@ -107,12 +107,12 @@ def recomendar_productos(db: Any, product_id: str, limit: int = 12) -> dict:
 
     candidatos = list(
         coleccion.find({"isActive": True, "_id": {"$ne": product_id}})
+        .sort("createdAt", DESCENDING)
     )
+    # El sort de Mongo prioriza los más recientes en empates sin comparar
+    # tipos de fecha distintos que puedan existir en documentos históricos.
     candidatos.sort(
-        key=lambda item: (
-            _puntuacion_recomendacion(item, producto_base),
-            item.get("createdAt") or datetime.min.replace(tzinfo=timezone.utc),
-        ),
+        key=lambda item: _puntuacion_recomendacion(item, producto_base),
         reverse=True,
     )
     return {"items": [formatear_producto(item) for item in candidatos[:limit]]}
