@@ -260,6 +260,11 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     except Exception:
         if order_id:
             db[ORDENES].delete_one({"_id": order_id})
+        # Si Mongo falla durante la retirada, restaurar cualquier fila seleccionada
+        # que alcanzara a borrarse antes del error.
+        for entry in selected_cart:
+            if db[CARRITO].find_one({"_id": entry["_id"], "userId": user_id}) is None:
+                db[CARRITO].insert_one(entry)
         for item in reserved:
             db[PRODUCTOS].update_one({"_id": item["productId"]}, {"$inc": {"stock": item["quantity"]}})
         raise
