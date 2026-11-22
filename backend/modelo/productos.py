@@ -31,7 +31,8 @@ class ProductoBase(BaseModel):
     shippingMethods: list[MetodoEnvioProducto] = Field(default_factory=list, max_length=12)
     stock: int = Field(default=10, ge=0)
     isActive: bool = False
-    allowCashOnDelivery: bool = True\n    isFeatured: bool = True
+    allowCashOnDelivery: bool = True
+    isFeatured: bool = True
     reviewCount: int = Field(default=0, ge=0)
     rating: float = Field(default=5.0, ge=0, le=5)
 
@@ -71,7 +72,8 @@ class ProductoActualizar(BaseModel):
     shippingMethods: list[MetodoEnvioProducto] | None = Field(default=None, max_length=12)
     stock: int | None = Field(default=None, ge=0)
     isActive: bool | None = None
-    allowCashOnDelivery: bool | None = None\n    isFeatured: bool | None = None
+    allowCashOnDelivery: bool | None = None
+    isFeatured: bool | None = None
     reviewCount: int | None = Field(default=None, ge=0)
     rating: float | None = Field(default=None, ge=0, le=5)
 
