@@ -12,6 +12,9 @@ CARRITO = "cart"
 PRODUCTOS = "products"
 CENTAVO = Decimal("0.01")
 COD_TERMS_VERSION = "2026-11-19"
+CONFIG_COD = "payment_settings"
+CONFIG_COD_ID = "cash_on_delivery"
+COD_DEFAULT_MESSAGE = "Paga tu pedido cuando lo recibas. Verifica los productos y confirma la recepción al momento de la entrega."
 
 
 def inicializar_indices_cuentas_bancarias(db: Any) -> None:
@@ -115,11 +118,39 @@ def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
     return discount
 
 
+def obtener_configuracion_contraentrega(db: Any) -> dict:
+    config = db[CONFIG_COD].find_one({"_id": CONFIG_COD_ID}) or {}
+    return {
+        "enabled": bool(config.get("enabled", True)),
+        "message": str(config.get("message") or COD_DEFAULT_MESSAGE),
+        "termsVersion": COD_TERMS_VERSION,
+    }
+
+
+def actualizar_configuracion_contraentrega(db: Any, data: dict) -> dict:
+    enabled = data.get("enabled")
+    message = data.get("message")
+    if not isinstance(enabled, bool):
+        raise HTTPException(status_code=400, detail="COD_ENABLED_BOOLEAN_REQUIRED")
+    if not isinstance(message, str) or not message.strip():
+        raise HTTPException(status_code=400, detail="COD_MESSAGE_REQUIRED")
+    now = datetime.now(timezone.utc)
+    db[CONFIG_COD].update_one(
+        {"_id": CONFIG_COD_ID},
+        {"$set": {"enabled": enabled, "message": message.strip()[:3000], "updatedAt": now},
+         "$setOnInsert": {"createdAt": now}},
+        upsert=True,
+    )
+    return obtener_configuracion_contraentrega(db)
+
+
 def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     _liberar_transferencias_vencidas(db)
     method = str(data.get("paymentMethod") or "").strip().lower()
     if method not in ("bank_transfer", "cash_on_delivery"):
         raise HTTPException(status_code=400, detail="INVALID_PAYMENT_METHOD")
+    if method == "cash_on_delivery" and not obtener_configuracion_contraentrega(db)["enabled"]:
+        raise HTTPException(status_code=409, detail="COD_DISABLED")
     if method == "cash_on_delivery" and (
         data.get("cashOnDeliveryAccepted") is not True
         or data.get("cashOnDeliveryTermsVersion") != COD_TERMS_VERSION
@@ -137,6 +168,16 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     cart = list(db[CARRITO].find({"userId": user_id}))
     if not cart:
         raise HTTPException(status_code=400, detail="CART_EMPTY")
+    selected_ids = data.get("selectedCartItemIds")
+    if not isinstance(selected_ids, list) or not selected_ids:
+        raise HTTPException(status_code=400, detail="CART_ITEMS_SELECTION_REQUIRED")
+    selected_ids = [str(value).strip() for value in selected_ids]
+    if any(not value for value in selected_ids) or len(set(selected_ids)) != len(selected_ids):
+        raise HTTPException(status_code=400, detail="INVALID_CART_ITEMS_SELECTION")
+    selected_cart = [entry for entry in cart if str(entry.get("_id")) in set(selected_ids)]
+    if len(selected_cart) != len(selected_ids):
+        raise HTTPException(status_code=409, detail="CART_ITEMS_CHANGED")
+    cart = selected_cart
 
     items, subtotal, shipping = [], Decimal("0.00"), Decimal("0.00")
     for entry in cart:
@@ -146,6 +187,8 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         product = db[PRODUCTOS].find_one({"_id": product_id})
         if product is None:
             raise HTTPException(status_code=409, detail="PRODUCT_NOT_FOUND")
+        if method == "cash_on_delivery" and product.get("allowCashOnDelivery", True) is not True:
+            raise HTTPException(status_code=409, detail="COD_PRODUCT_NOT_ALLOWED")
         price = _money(product.get("price"))
         stock = product.get("stock")
         if isinstance(stock, bool) or not isinstance(stock, int) or stock < qty:
@@ -209,7 +252,8 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         if not order["customerName"] or not order["address"] or not order["city"] or not order["phone"]:
             raise HTTPException(status_code=400, detail="DELIVERY_FIELDS_REQUIRED")
         db[ORDENES].insert_one(order)
-        db[CARRITO].delete_many({"userId": user_id})
+        # Solo se retiran del carrito las filas exactas incluidas en esta orden.
+        db[CARRITO].delete_many({"userId": user_id, "_id": {"$in": selected_ids}})
         order.pop("_id", None)
         return {"success": True, "order": {"id": order_id, **order}}
     except Exception:
