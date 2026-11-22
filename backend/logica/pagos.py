@@ -12,8 +12,8 @@ CARRITO = "cart"
 PRODUCTOS = "products"
 CENTAVO = Decimal("0.01")
 COD_TERMS_VERSION = "2026-11-19"
-CONFIG_COD = "payment_settings"
-CONFIG_COD_ID = "cash_on_delivery"
+CONFIG_COD = "cash_on_delivery"
+CONFIG_COD_ID = "configuracion"
 COD_DEFAULT_MESSAGE = "Paga tu pedido cuando lo recibas. Verifica los productos y confirma la recepción al momento de la entrega."
 
 
@@ -116,6 +116,31 @@ def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
     return discount
+
+
+def inicializar_configuracion_contraentrega(db: Any) -> None:
+    """Crea la configuración COD al iniciar y migra el documento del esquema anterior."""
+    now = datetime.now(timezone.utc)
+    collection = db[CONFIG_COD]
+    current = collection.find_one({"_id": CONFIG_COD_ID})
+
+    # Migración única: conserva los valores guardados en payment_settings y
+    # elimina únicamente el documento COD antiguo, sin tocar otras preferencias.
+    legacy = db["payment_settings"].find_one({"_id": "cash_on_delivery"})
+    if current is None:
+        initial = {
+            "enabled": bool(legacy.get("enabled", True)) if legacy else True,
+            "message": str((legacy or {}).get("message") or COD_DEFAULT_MESSAGE),
+            "createdAt": (legacy or {}).get("createdAt") or now,
+            "updatedAt": (legacy or {}).get("updatedAt") or now,
+        }
+        collection.update_one(
+            {"_id": CONFIG_COD_ID},
+            {"$setOnInsert": initial},
+            upsert=True,
+        )
+    if legacy is not None:
+        db["payment_settings"].delete_one({"_id": "cash_on_delivery"})
 
 
 def obtener_configuracion_contraentrega(db: Any) -> dict:
