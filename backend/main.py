@@ -38,7 +38,7 @@ from backend.logica.comentarios import inicializar_indices_comentarios
 from backend.logica.moderacion import inicializar_indices_moderacion
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
-from backend.logica.pagos import inicializar_indices_cuentas_bancarias
+from backend.logica.pagos import inicializar_indices_cuentas_bancarias, inicializar_configuracion_contraentrega
 from backend.logica.mensajes import inicializar_indices_mensajes
 from backend.logica.autenticacion import inicializar_super_admin
 
@@ -110,6 +110,7 @@ async def lifespan(application: FastAPI):
         inicializar_indices_ordenes(database)
         inicializar_indices_cupones(database)
         inicializar_indices_cuentas_bancarias(database)
+        inicializar_configuracion_contraentrega(database)
         inicializar_indices_mensajes(database)
 
         application.state.mongodb_client = mongo_client
