@@ -5,10 +5,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from backend.logica.pagos_transferencia import liberar_transferencias_vencidas
-from backend.logica.pagos_contraentrega import (
-    COD_TERMS_VERSION, obtener_configuracion_contraentrega,
-)
+from backend.logica.pagos_transferencia import liberar_transferencias_vencidas, preparar_pago_transferencia
+from backend.logica.pagos_contraentrega import preparar_pago_contraentrega, validar_producto_para_contraentrega
 
 CUENTAS = "bank_accounts"
 ORDENES = "orders"
@@ -40,20 +38,11 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     method = str(data.get("paymentMethod") or "").strip().lower()
     if method not in ("bank_transfer", "cash_on_delivery"):
         raise HTTPException(status_code=400, detail="INVALID_PAYMENT_METHOD")
-    if method == "cash_on_delivery" and not obtener_configuracion_contraentrega(db)["enabled"]:
-        raise HTTPException(status_code=409, detail="COD_DISABLED")
-    if method == "cash_on_delivery" and (
-        data.get("cashOnDeliveryAccepted") is not True
-        or data.get("cashOnDeliveryTermsVersion") != COD_TERMS_VERSION
-    ):
-        raise HTTPException(status_code=400, detail="COD_TERMS_NOT_ACCEPTED")
-
-    account = None
-    if method == "bank_transfer":
-        account_id = str(data.get("bankAccountId") or "").strip()
-        account = db[CUENTAS].find_one({"_id": account_id, "isActive": True})
-        if account is None:
-            raise HTTPException(status_code=409, detail="BANK_ACCOUNT_UNAVAILABLE")
+    preparadores = {
+        "bank_transfer": preparar_pago_transferencia,
+        "cash_on_delivery": preparar_pago_contraentrega,
+    }
+    payment_details = preparadores[method](db, data, datetime.now(timezone.utc))
 
     user_id = str(user["_id"])
     cart = list(db[CARRITO].find({"userId": user_id}))
@@ -79,8 +68,8 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         product = db[PRODUCTOS].find_one({"_id": product_id})
         if product is None:
             raise HTTPException(status_code=409, detail="PRODUCT_NOT_FOUND")
-        if method == "cash_on_delivery" and product.get("allowCashOnDelivery", True) is not True:
-            raise HTTPException(status_code=409, detail="COD_PRODUCT_NOT_ALLOWED")
+        if method == "cash_on_delivery":
+            validar_producto_para_contraentrega(product)
         price = _money(product.get("price"))
         stock = product.get("stock")
         if isinstance(stock, bool) or not isinstance(stock, int) or stock < qty:
@@ -129,15 +118,8 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "subtotalDOP": format(subtotal, ".2f"), "shippingTotalDOP": format(shipping, ".2f"),
             "couponCode": coupon_code, "couponDiscountDOP": format(discount, ".2f"),
             "total": format(total, ".2f"), "totalDOP": format(total, ".2f"), "currency": "DOP",
-            "paymentMethod": method, "paymentStatus": "awaiting_proof" if method == "bank_transfer" else "cash_on_delivery",
-            "status": "pendiente_pago" if method == "bank_transfer" else "pendiente_confirmacion",
-            "cashOnDeliveryAccepted": method == "cash_on_delivery",
-            "cashOnDeliveryTermsVersion": COD_TERMS_VERSION if method == "cash_on_delivery" else None,
-            "cashOnDeliveryAcceptedAt": now if method == "cash_on_delivery" else None,
-            "expiresAt": now + timedelta(hours=24) if method == "bank_transfer" else None,
-            "bankAccount": {"id": account["id"], "bankName": account["bankName"],
-                            "accountNumber": account["accountNumber"], "accountType": account["accountType"],
-                            "holderName": account["holderName"], "holderDocument": account.get("holderDocument", "")} if account else None,
+            "paymentMethod": method,
+            **payment_details,
             "paymentProofUrl": "", "createdAt": now, "updatedAt": now,
             "inventoryReserved": True,
         }
