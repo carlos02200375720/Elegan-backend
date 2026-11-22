@@ -10,6 +10,11 @@ ORDENES = "orders"
 PRODUCTOS = "products"
 
 
+def inicializar_indices_cuentas_bancarias(db: Any) -> None:
+    db[CUENTAS].create_index([("id", ASCENDING)], unique=True, name="idx_bank_accounts_id")
+    db[CUENTAS].create_index([("isActive", ASCENDING)], name="idx_bank_accounts_active")
+
+
 def _liberar_transferencias_vencidas(db: Any) -> None:
     now = datetime.now(timezone.utc)
     expired = db[ORDENES].find({
