@@ -9,6 +9,30 @@ CONFIG_COD_ID = "configuracion"
 COD_DEFAULT_MESSAGE = "Paga tu pedido cuando lo recibas. Verifica los productos y confirma la recepción al momento de la entrega."
 
 
+def preparar_pago_contraentrega(db: Any, data: dict, now: datetime) -> dict:
+    if not obtener_configuracion_contraentrega(db)["enabled"]:
+        raise HTTPException(status_code=409, detail="COD_DISABLED")
+    if (
+        data.get("cashOnDeliveryAccepted") is not True
+        or data.get("cashOnDeliveryTermsVersion") != COD_TERMS_VERSION
+    ):
+        raise HTTPException(status_code=400, detail="COD_TERMS_NOT_ACCEPTED")
+    return {
+        "paymentStatus": "cash_on_delivery",
+        "status": "pendiente_confirmacion",
+        "cashOnDeliveryAccepted": True,
+        "cashOnDeliveryTermsVersion": COD_TERMS_VERSION,
+        "cashOnDeliveryAcceptedAt": now,
+        "expiresAt": None,
+        "bankAccount": None,
+    }
+
+
+def validar_producto_para_contraentrega(product: dict) -> None:
+    if product.get("allowCashOnDelivery", True) is not True:
+        raise HTTPException(status_code=409, detail="COD_PRODUCT_NOT_ALLOWED")
+
+
 def inicializar_configuracion_contraentrega(db: Any) -> None:
     """Crea la configuración COD independiente con valores predeterminados."""
     now = datetime.now(timezone.utc)
