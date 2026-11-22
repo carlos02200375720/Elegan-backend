@@ -66,6 +66,58 @@ def listar_productos(
     return {"items": items}
 
 
+
+def _numero_seguro(valor: Any, predeterminado: float = 0.0) -> float:
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return predeterminado
+
+
+def _puntuacion_recomendacion(producto: dict, producto_base: dict) -> float:
+    """Prioriza categoría y precio similares, con señales de calidad del catálogo."""
+    categoria_base = str(producto_base.get("category") or "").strip().casefold()
+    categoria = str(producto.get("category") or "").strip().casefold()
+    misma_categoria = bool(categoria_base) and categoria == categoria_base
+
+    puntuacion = 100.0 if misma_categoria else 0.0
+    precio_base = max(0.0, _numero_seguro(producto_base.get("price")))
+    precio = max(0.0, _numero_seguro(producto.get("price")))
+    if precio_base > 0:
+        diferencia = abs(precio - precio_base) / precio_base
+        puntuacion += 25.0 * max(0.0, 1.0 - min(diferencia, 1.0))
+
+    if producto.get("isFeatured") is True:
+        puntuacion += 8.0
+    rating = min(5.0, max(0.0, _numero_seguro(producto.get("rating"))))
+    puntuacion += (rating / 5.0) * 6.0
+    reviews = max(0.0, _numero_seguro(producto.get("reviewCount")))
+    puntuacion += 6.0 * min(reviews / 20.0, 1.0)
+    return puntuacion
+
+
+def recomendar_productos(db: Any, product_id: str, limit: int = 12) -> dict:
+    """Devuelve productos publicados, excluye el actual y ordena por relevancia."""
+    product_id = str(product_id or "").strip()
+    limit = min(30, max(1, int(limit)))
+    coleccion = coleccion_productos(db)
+    producto_base = coleccion.find_one({"_id": product_id, "isActive": True})
+    if producto_base is None:
+        raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
+
+    candidatos = list(
+        coleccion.find({"isActive": True, "_id": {"$ne": product_id}})
+    )
+    candidatos.sort(
+        key=lambda item: (
+            _puntuacion_recomendacion(item, producto_base),
+            item.get("createdAt") or datetime.min.replace(tzinfo=timezone.utc),
+        ),
+        reverse=True,
+    )
+    return {"items": [formatear_producto(item) for item in candidatos[:limit]]}
+
+
 def obtener_producto(
     db: Any, product_id: str, solo_publicados: bool = False
 ) -> dict:
