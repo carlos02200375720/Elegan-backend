@@ -9,18 +9,11 @@ from backend.logica.pagos_transferencia import liberar_transferencias_vencidas
 from backend.logica.pagos_contraentrega import (
     COD_TERMS_VERSION, obtener_configuracion_contraentrega,
 )
-from backend.logica.pagos_transferencia import listar_cuentas_bancarias
-from pymongo import ASCENDING
 
 ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
 CENTAVO = Decimal("0.01")
-
-
-def inicializar_indices_cuentas_bancarias(db: Any) -> None:
-    db[CUENTAS].create_index([("id", ASCENDING)], unique=True, name="idx_bank_accounts_id")
-    db[CUENTAS].create_index([("isActive", ASCENDING)], name="idx_bank_accounts_active")
 
 
 def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
