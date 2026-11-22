@@ -89,6 +89,7 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
         "shippingPrice": float(metodo_envio.get("price", 0)) if metodo_envio else 0.0,
         "shippingDeliveryTime": metodo_envio.get("deliveryTime", "") if metodo_envio else "",
         "shippingOrigin": metodo_envio.get("origin", "") if metodo_envio else "",
+        "allowCashOnDelivery": producto.get("allowCashOnDelivery", True),
     }
 
     if existente is not None:
