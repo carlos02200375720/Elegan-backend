@@ -116,10 +116,20 @@ def calcular_descuento_cupon(db: Any, codigo: str, subtotal: Decimal) -> tuple[d
     return cupon, descuento
 
 
-def validar_cupon_cliente(db: Any, codigo: str, user_id: str) -> dict:
+def validar_cupon_cliente(
+    db: Any, codigo: str, user_id: str, selected_cart_item_ids: list[str] | None = None
+) -> dict:
     carrito = list(db["cart"].find({"userId": str(user_id)}))
     if not carrito:
         raise HTTPException(status_code=400, detail="CART_EMPTY")
+    if selected_cart_item_ids is not None:
+        if not selected_cart_item_ids or len(set(selected_cart_item_ids)) != len(selected_cart_item_ids):
+            raise HTTPException(status_code=400, detail="INVALID_CART_ITEMS_SELECTION")
+        selected = set(selected_cart_item_ids)
+        carrito_seleccionado = [item for item in carrito if str(item.get("_id")) in selected]
+        if len(carrito_seleccionado) != len(selected):
+            raise HTTPException(status_code=409, detail="CART_ITEMS_CHANGED")
+        carrito = carrito_seleccionado
     subtotal = Decimal("0.00")
     for item in carrito:
         cantidad = item.get("quantity")
