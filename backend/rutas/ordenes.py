@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from backend.modelo.ordenes import OrdenActualizarEstado
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db, usuario_actual
-from backend.logica.pagos import liberar_transferencias_vencidas
+from backend.logica.pagos_transferencia import liberar_transferencias_vencidas
 from backend.logica.ordenes import (
     actualizar_estado_orden,
     listar_ordenes,
@@ -41,3 +41,4 @@ def actualizar_estado_orden_admin(
     db=Depends(obtener_db),
 ):
     return actualizar_estado_orden(db, order_id, datos.status)
+
