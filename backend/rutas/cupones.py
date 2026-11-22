@@ -26,6 +26,7 @@ router_movil_cupones = APIRouter(
 class CuponValidar(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str = Field(min_length=2, max_length=40)
+    selectedCartItemIds: list[str] | None = None
 
 
 @router_admin_cupones.get("")
@@ -56,4 +57,4 @@ def validar_cupon_movil(
     user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
-    return validar_cupon_cliente(db, datos.code, str(user["_id"]))
+    return validar_cupon_cliente(db, datos.code, str(user["_id"]), datos.selectedCartItemIds)
