@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from backend.rutas.autenticacion import obtener_db, usuario_actual
-from backend.logica.pagos import crear_orden_pago
+from backend.logica.checkout import crear_orden_pago
 
 router_movil_checkout = APIRouter(prefix="/api/movil/payments", tags=["Creación de pedidos"])
 
