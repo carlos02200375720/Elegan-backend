@@ -19,11 +19,11 @@ from backend.logica.media import guardar_comprobante_privado
 router_movil_pagos = APIRouter(prefix="/api/movil/payments", tags=["Pagos móviles"])
 router_admin_cuentas = APIRouter(prefix="/api/admin/bank-accounts", tags=["Cuentas bancarias"],
     dependencies=[Depends(requerir_administrador)])
-router_admin_pagos = APIRouter(prefix="/api/admin/orders", tags=["Revisión de pagos"],
+router_admin_contraentrega = APIRouter(prefix="/api/admin/cash-on-delivery", tags=["Pago contra entrega"],\n    dependencies=[Depends(requerir_administrador)])\nrouter_admin_pagos = APIRouter(prefix="/api/admin/orders", tags=["Revisión de pagos"],
     dependencies=[Depends(requerir_administrador)])
 
 
-@router_movil_pagos.get("/bank-accounts")
+@router_movil_pagos.get("/cash-on-delivery")\ndef obtener_contraentrega(db=Depends(obtener_db)):\n    return obtener_configuracion_contraentrega(db)\n\n\n@router_admin_contraentrega.get("")\ndef obtener_contraentrega_admin(db=Depends(obtener_db), _user=Depends(requerir_administrador)):\n    return obtener_configuracion_contraentrega(db)\n\n\n@router_admin_contraentrega.put("")\ndef guardar_contraentrega_admin(datos: dict, db=Depends(obtener_db), _user=Depends(requerir_administrador)):\n    return actualizar_configuracion_contraentrega(db, datos)\n\n\n@router_movil_pagos.get("/bank-accounts")
 def cuentas_activas(db=Depends(obtener_db), _user=Depends(usuario_actual)):
     return listar_cuentas_bancarias(db, solo_activas=True)
 
