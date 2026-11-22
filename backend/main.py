@@ -23,7 +23,9 @@ from backend.rutas.comentarios import router_movil_comentarios
 from backend.rutas.moderacion import router_movil_moderacion, router_admin_moderacion
 from backend.rutas.legal import router_movil_legal, router_admin_legal
 from backend.rutas.ordenes import router_admin_ordenes, router_movil_ordenes
-from backend.rutas.pagos import router_movil_pagos, router_admin_cuentas, router_admin_pagos, router_admin_contraentrega
+from backend.rutas.pagos_transferencia import router_movil_transferencia, router_admin_cuentas, router_admin_revision_transferencia
+from backend.rutas.pagos_contraentrega import router_movil_contraentrega, router_admin_contraentrega
+from backend.rutas.pagos_checkout import router_movil_checkout
 from backend.rutas.cupones import router_admin_cupones, router_movil_cupones
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
@@ -38,7 +40,8 @@ from backend.logica.comentarios import inicializar_indices_comentarios
 from backend.logica.moderacion import inicializar_indices_moderacion
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
-from backend.logica.pagos import inicializar_indices_cuentas_bancarias, inicializar_configuracion_contraentrega
+from backend.logica.pagos_transferencia import inicializar_indices_cuentas_bancarias
+from backend.logica.pagos_contraentrega import inicializar_configuracion_contraentrega
 from backend.logica.mensajes import inicializar_indices_mensajes
 from backend.logica.autenticacion import inicializar_super_admin
 
@@ -166,9 +169,11 @@ app.include_router(router_admin_moderacion)
 app.include_router(router_movil_legal)
 app.include_router(router_admin_legal)
 app.include_router(router_movil_carrito)
-app.include_router(router_movil_pagos)
+app.include_router(router_movil_transferencia)
+app.include_router(router_movil_contraentrega)
+app.include_router(router_movil_checkout)
 app.include_router(router_admin_cuentas)
-app.include_router(router_admin_pagos)
+app.include_router(router_admin_revision_transferencia)
 app.include_router(router_admin_contraentrega)
 app.include_router(router_admin_cupones)
 app.include_router(router_movil_cupones)
