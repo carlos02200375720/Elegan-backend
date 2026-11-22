@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -8,6 +8,26 @@ from pymongo import ASCENDING
 CUENTAS = "bank_accounts"
 ORDENES = "orders"
 PRODUCTOS = "products"
+
+
+def preparar_pago_transferencia(db: Any, data: dict, now: datetime) -> dict:
+    account_id = str(data.get("bankAccountId") or "").strip()
+    account = db[CUENTAS].find_one({"_id": account_id, "isActive": True})
+    if account is None:
+        raise HTTPException(status_code=409, detail="BANK_ACCOUNT_UNAVAILABLE")
+    return {
+        "paymentStatus": "awaiting_proof",
+        "status": "pendiente_pago",
+        "cashOnDeliveryAccepted": False,
+        "cashOnDeliveryTermsVersion": None,
+        "cashOnDeliveryAcceptedAt": None,
+        "expiresAt": now + timedelta(hours=24),
+        "bankAccount": {
+            "id": account["id"], "bankName": account["bankName"],
+            "accountNumber": account["accountNumber"], "accountType": account["accountType"],
+            "holderName": account["holderName"], "holderDocument": account.get("holderDocument", ""),
+        },
+    }
 
 
 def inicializar_indices_cuentas_bancarias(db: Any) -> None:
