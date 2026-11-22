@@ -12,18 +12,36 @@ from backend.rutas.autenticacion import obtener_db, usuario_actual
 from backend.logica.pagos import (
     adjuntar_comprobante, actualizar_cuenta_bancaria, crear_cuenta_bancaria,
     crear_orden_pago, eliminar_cuenta_bancaria, listar_cuentas_bancarias,
-    revisar_pago_transferencia,
+    revisar_pago_transferencia, obtener_configuracion_contraentrega,
+    actualizar_configuracion_contraentrega,
 )
 from backend.logica.media import guardar_comprobante_privado
 
 router_movil_pagos = APIRouter(prefix="/api/movil/payments", tags=["Pagos móviles"])
 router_admin_cuentas = APIRouter(prefix="/api/admin/bank-accounts", tags=["Cuentas bancarias"],
     dependencies=[Depends(requerir_administrador)])
-router_admin_contraentrega = APIRouter(prefix="/api/admin/cash-on-delivery", tags=["Pago contra entrega"],\n    dependencies=[Depends(requerir_administrador)])\nrouter_admin_pagos = APIRouter(prefix="/api/admin/orders", tags=["Revisión de pagos"],
+router_admin_contraentrega = APIRouter(prefix="/api/admin/cash-on-delivery", tags=["Pago contra entrega"],
+    dependencies=[Depends(requerir_administrador)])
+router_admin_pagos = APIRouter(prefix="/api/admin/orders", tags=["Revisión de pagos"],
     dependencies=[Depends(requerir_administrador)])
 
 
-@router_movil_pagos.get("/cash-on-delivery")\ndef obtener_contraentrega(db=Depends(obtener_db)):\n    return obtener_configuracion_contraentrega(db)\n\n\n@router_admin_contraentrega.get("")\ndef obtener_contraentrega_admin(db=Depends(obtener_db), _user=Depends(requerir_administrador)):\n    return obtener_configuracion_contraentrega(db)\n\n\n@router_admin_contraentrega.put("")\ndef guardar_contraentrega_admin(datos: dict, db=Depends(obtener_db), _user=Depends(requerir_administrador)):\n    return actualizar_configuracion_contraentrega(db, datos)\n\n\n@router_movil_pagos.get("/bank-accounts")
+@router_movil_pagos.get("/cash-on-delivery")
+def obtener_contraentrega(db=Depends(obtener_db)):
+    return obtener_configuracion_contraentrega(db)
+
+
+@router_admin_contraentrega.get("")
+def obtener_contraentrega_admin(db=Depends(obtener_db), _user=Depends(requerir_administrador)):
+    return obtener_configuracion_contraentrega(db)
+
+
+@router_admin_contraentrega.put("")
+def guardar_contraentrega_admin(datos: dict, db=Depends(obtener_db), _user=Depends(requerir_administrador)):
+    return actualizar_configuracion_contraentrega(db, datos)
+
+
+@router_movil_pagos.get("/bank-accounts")
 def cuentas_activas(db=Depends(obtener_db), _user=Depends(usuario_actual)):
     return listar_cuentas_bancarias(db, solo_activas=True)
 
