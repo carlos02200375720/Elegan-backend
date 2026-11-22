@@ -40,7 +40,14 @@ def formatear_item_carrito(documento: dict) -> dict:
 def obtener_carrito(db: Any, user: dict) -> dict:
     user_id = str(user["_id"])
     filas = coleccion_carrito(db).find({"userId": user_id}).sort("createdAt", 1)
-    return {"items": [formatear_item_carrito(fila) for fila in filas]}
+    items = []
+    for fila in filas:
+        producto = db[NOMBRE_COLECCION_PRODUCTOS].find_one({"_id": str(fila.get("productId") or "")})
+        fila["allowCashOnDelivery"] = (
+            producto.get("allowCashOnDelivery", True) if producto is not None else False
+        )
+        items.append(formatear_item_carrito(fila))
+    return {"items": items}
 
 
 def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
