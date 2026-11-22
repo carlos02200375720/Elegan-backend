@@ -177,6 +177,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     selected_cart = [entry for entry in cart if str(entry.get("_id")) in set(selected_ids)]
     if len(selected_cart) != len(selected_ids):
         raise HTTPException(status_code=409, detail="CART_ITEMS_CHANGED")
+    selected_cart_ids = [entry["_id"] for entry in selected_cart]
     cart = selected_cart
 
     items, subtotal, shipping = [], Decimal("0.00"), Decimal("0.00")
@@ -253,7 +254,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             raise HTTPException(status_code=400, detail="DELIVERY_FIELDS_REQUIRED")
         db[ORDENES].insert_one(order)
         # Solo se retiran del carrito las filas exactas incluidas en esta orden.
-        db[CARRITO].delete_many({"userId": user_id, "_id": {"$in": selected_ids}})
+        db[CARRITO].delete_many({"userId": user_id, "_id": {"$in": selected_cart_ids}})
         order.pop("_id", None)
         return {"success": True, "order": {"id": order_id, **order}}
     except Exception:
