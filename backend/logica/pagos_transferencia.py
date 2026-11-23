@@ -15,6 +15,9 @@ def preparar_pago_transferencia(db: Any, data: dict, now: datetime) -> dict:
     account = db[CUENTAS].find_one({"_id": account_id, "isActive": True})
     if account is None:
         raise HTTPException(status_code=409, detail="BANK_ACCOUNT_UNAVAILABLE")
+    account_public_id = str(account.get("id") or account.get("_id") or "").strip()
+    if not account_public_id:
+        raise HTTPException(status_code=409, detail="BANK_ACCOUNT_UNAVAILABLE")
     return {
         "paymentStatus": "awaiting_proof",
         "status": "pendiente_pago",
@@ -23,7 +26,7 @@ def preparar_pago_transferencia(db: Any, data: dict, now: datetime) -> dict:
         "cashOnDeliveryAcceptedAt": None,
         "expiresAt": now + timedelta(hours=24),
         "bankAccount": {
-            "id": account["id"], "bankName": account["bankName"],
+            "id": account_public_id, "bankName": account["bankName"],
             "accountNumber": account["accountNumber"], "accountType": account["accountType"],
             "holderName": account["holderName"], "holderDocument": account.get("holderDocument", ""),
         },
@@ -64,6 +67,8 @@ def liberar_transferencias_vencidas(db: Any) -> None:
 
 def _format_account(doc: dict) -> dict:
     row = dict(doc)
+    # Compatibilidad con cuentas antiguas que solo tienen _id en MongoDB.
+    row["id"] = str(row.get("id") or row.get("_id") or "").strip()
     row.pop("_id", None)
     return row
 
