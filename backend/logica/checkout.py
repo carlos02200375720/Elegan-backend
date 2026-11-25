@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta, timezone
-from decimal import InvalidOperation
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -23,7 +22,7 @@ def _money(value: Any, *, allow_zero: bool = False) -> int:
 
 def _coupon_discount(db: Any, code: str, subtotal: int) -> int:
     if not code:
-        return Decimal("0")
+        return 0
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
     return discount
@@ -75,7 +74,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         ship_method = next((m for m in methods if str(m.get("id") or "") == shipping_id), None) if shipping_id else None
         if methods and ship_method is None:
             raise HTTPException(status_code=409, detail="SHIPPING_METHOD_REQUIRED")
-        ship_price = _money(ship_method.get("price", 0), allow_zero=True) if ship_method else Decimal("0.00")
+        ship_price = _money(ship_method.get("price", 0), allow_zero=True) if ship_method else 0
         subtotal += price * qty
         shipping += ship_price
         items.append({"productId": product_id, "name": str(product.get("name") or "Producto")[:200],
