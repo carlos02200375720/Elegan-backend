@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
@@ -12,8 +12,6 @@ CUENTAS = "bank_accounts"
 ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
-UNIDAD = Decimal("1")
-
 
 def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
     try:
@@ -22,7 +20,7 @@ def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
         raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
     if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
         raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
-    return amount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
+    return amount
 
 
 def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
@@ -30,7 +28,7 @@ def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
         return Decimal("0")
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
-    return discount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
+    return discount
 
 
 def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
@@ -88,10 +86,9 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
                       "shippingMethodName": ship_method.get("name", "") if ship_method else "",
                       "shippingPriceDOP": float(ship_price),
                       "selectedSize": entry.get("selectedSize"), "selectedColor": entry.get("selectedColor")})
-    subtotal, shipping = subtotal.quantize(UNIDAD, rounding=ROUND_HALF_UP), shipping.quantize(UNIDAD, rounding=ROUND_HALF_UP)
     coupon_code = str(data.get("couponCode") or "").strip().upper()
     discount = _coupon_discount(db, coupon_code, subtotal)
-    total = (subtotal - discount + shipping).quantize(UNIDAD, rounding=ROUND_HALF_UP)
+    total = subtotal - discount + shipping
     if total <= 0:
         raise HTTPException(status_code=409, detail="INVALID_ORDER_TOTAL")
 
