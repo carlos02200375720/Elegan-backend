@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import HTTPException
@@ -8,8 +7,6 @@ from backend.logica.moneda import formatear_moneda, normalizar_importe_entero
 from pymongo import ASCENDING
 
 COLECCION_CUPONES = "coupons"
-CENTAVO = Decimal("0.01")
-
 
 def inicializar_indices_cupones(db: Any) -> None:
     db[COLECCION_CUPONES].create_index(
@@ -80,7 +77,7 @@ def actualizar_cupon(db: Any, codigo: str, datos: dict) -> dict:
     if "discountType" in datos and datos["discountType"] == "percentage":
         actual = db[COLECCION_CUPONES].find_one({"_id": codigo})
         valor = datos.get("discountValue", actual.get("discountValue") if actual else 0)
-        if Decimal(str(valor)) > 100:
+        if int(valor) > 100:
             raise HTTPException(status_code=400, detail="INVALID_COUPON_VALUE")
     datos["updatedAt"] = datetime.now(timezone.utc)
     resultado = db[COLECCION_CUPONES].update_one({"_id": codigo}, {"$set": datos})
