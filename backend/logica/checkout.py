@@ -84,10 +84,10 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         subtotal += price * qty
         shipping += ship_price
         items.append({"productId": product_id, "name": str(product.get("name") or "Producto")[:200],
-                      "priceDOP": formatear_moneda(price), "quantity": qty,
+                      "priceDOP": float(price), "quantity": qty,
                       "shippingMethodId": ship_method.get("id", "") if ship_method else "",
                       "shippingMethodName": ship_method.get("name", "") if ship_method else "",
-                      "shippingPriceDOP": formatear_moneda(ship_price),
+                      "shippingPriceDOP": float(ship_price),
                       "selectedSize": entry.get("selectedSize"), "selectedColor": entry.get("selectedColor")})
     subtotal, shipping = subtotal.quantize(CENTAVO), shipping.quantize(CENTAVO)
     coupon_code = str(data.get("couponCode") or "").strip().upper()
@@ -116,9 +116,9 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "city": str(data.get("city") or "").strip(), "items": items,
             "itemCount": sum(i["quantity"] for i in items),
             "itemsSummary": ", ".join(f'{i["name"]} x{i["quantity"]}' for i in items),
-            "subtotalDOP": formatear_moneda(subtotal), "shippingTotalDOP": formatear_moneda(shipping),
-            "couponCode": coupon_code, "couponDiscountDOP": formatear_moneda(discount),
-            "total": formatear_moneda(total), "totalDOP": formatear_moneda(total), "currency": "DOP",
+            "subtotalDOP": float(subtotal), "shippingTotalDOP": float(shipping),
+            "couponCode": coupon_code, "couponDiscountDOP": float(discount),
+            "total": float(total), "totalDOP": float(total), "currency": "DOP",
             "paymentMethod": method,
             **payment_details,
             "paymentProofUrl": "", "createdAt": now, "updatedAt": now,
