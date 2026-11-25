@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+
+from backend.logica.moneda import formatear_moneda
 from pymongo import DESCENDING
 from pymongo.collection import Collection
 
@@ -33,6 +35,18 @@ def inicializar_indices_ordenes(db: Any) -> None:
 def formatear_orden(documento: dict) -> dict:
     orden = dict(documento)
     orden["id"] = str(orden.pop("_id"))
+    for campo in ("subtotalDOP", "shippingTotalDOP", "couponDiscountDOP", "total", "totalDOP"):
+        if campo in orden:
+            orden[campo + "Formatted"] = formatear_moneda(orden[campo])
+    items = orden.get("items")
+    if isinstance(items, list):
+        orden["items"] = [
+            {**item,
+             **({"priceFormatted": formatear_moneda(item["priceDOP"])} if "priceDOP" in item else {}),
+             **({"shippingPriceFormatted": formatear_moneda(item["shippingPriceDOP"])} if "shippingPriceDOP" in item else {})}
+            if isinstance(item, dict) else item
+            for item in items
+        ]
     return orden
 
 
