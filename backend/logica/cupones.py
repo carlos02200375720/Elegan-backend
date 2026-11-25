@@ -33,6 +33,8 @@ def _importe(valor: Any) -> Decimal:
 def formatear_cupon(documento: dict) -> dict:
     cupon = dict(documento)
     cupon["id"] = str(cupon.pop("_id"))
+    if cupon.get("discountType") == "fixed" and "discountValue" in cupon:
+        cupon["discountValueFormatted"] = formatear_moneda(cupon["discountValue"])
     return cupon
 
 
