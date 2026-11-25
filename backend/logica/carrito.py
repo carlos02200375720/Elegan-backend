@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from backend.logica.moneda import formatear_moneda
+from backend.logica.moneda import formatear_moneda, normalizar_importe_entero
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_CARRITO = "cart"
@@ -95,11 +95,11 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
 
     snapshot = {
         "name": producto.get("name", ""),
-        "price": producto.get("price", 0),
+        "price": normalizar_importe_entero(producto.get("price", 0)),
         "imageUrl": producto.get("imageUrl", ""),
         "shippingMethodId": metodo_envio.get("id") if metodo_envio else "",
         "shippingMethodName": metodo_envio.get("name", "") if metodo_envio else "",
-        "shippingPrice": float(metodo_envio.get("price", 0)) if metodo_envio else 0.0,
+        "shippingPrice": normalizar_importe_entero(metodo_envio.get("price", 0)) if metodo_envio else 0,
         "shippingDeliveryTime": metodo_envio.get("deliveryTime", "") if metodo_envio else "",
         "shippingOrigin": metodo_envio.get("origin", "") if metodo_envio else "",
         "allowCashOnDelivery": producto.get("allowCashOnDelivery", True),
