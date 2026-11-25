@@ -7,6 +7,7 @@ from pymongo import DESCENDING
 from pymongo.collection import Collection
 
 from backend.logica.media import eliminar_medios_sin_referencias
+from backend.logica.moneda import formatear_moneda
 
 NOMBRE_COLECCION_PRODUCTOS = "products"
 
@@ -30,6 +31,15 @@ def formatear_producto(documento: dict | None) -> dict | None:
     producto["id"] = str(producto.pop("_id"))
     # Compatibilidad con documentos anteriores al campo de publicación.
     producto.setdefault("isActive", False)
+    if "price" in producto:
+        producto["priceFormatted"] = formatear_moneda(producto["price"])
+    metodos = producto.get("shippingMethods")
+    if isinstance(metodos, list):
+        producto["shippingMethods"] = [
+            {**metodo, "priceFormatted": formatear_moneda(metodo.get("price", 0))}
+            if isinstance(metodo, dict) else metodo
+            for metodo in metodos
+        ]
     return producto
 
 
