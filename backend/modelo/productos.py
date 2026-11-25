@@ -1,6 +1,17 @@
 from typing import Any
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _importe_entero(value):
+    try:
+        numero = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("INVALID_AMOUNT")
+    if not numero.is_finite() or numero < 0:
+        raise ValueError("INVALID_AMOUNT")
+    return int(numero.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 class MetodoEnvioProducto(BaseModel):
@@ -8,8 +19,13 @@ class MetodoEnvioProducto(BaseModel):
 
     id: str = Field(min_length=1, max_length=80)
     name: str = Field(min_length=1, max_length=100)
-    price: float = Field(ge=0)
+    price: int = Field(ge=0)
     deliveryTime: str = Field(min_length=1, max_length=100)
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def precio_entero(cls, value):
+        return _importe_entero(value)
     origin: str = Field(min_length=1, max_length=120)
 
 
@@ -19,7 +35,7 @@ class ProductoBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     category: str = "todo"
-    price: float = Field(default=0, ge=0)
+    price: int = Field(default=0, ge=0)
     imageUrl: str = ""
     images: list[str] = Field(default_factory=list)
     videoUrl: str = ""
@@ -35,6 +51,11 @@ class ProductoBase(BaseModel):
     isFeatured: bool = True
     reviewCount: int = Field(default=0, ge=0)
     rating: float = Field(default=5.0, ge=0, le=5)
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def precio_entero(cls, value):
+        return _importe_entero(value)
 
     @field_validator("name")
     @classmethod
@@ -60,7 +81,7 @@ class ProductoActualizar(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     category: str | None = None
-    price: float | None = Field(default=None, ge=0)
+    price: int | None = Field(default=None, ge=0)
     imageUrl: str | None = None
     images: list[str] | None = None
     videoUrl: str | None = None
@@ -76,6 +97,11 @@ class ProductoActualizar(BaseModel):
     isFeatured: bool | None = None
     reviewCount: int | None = Field(default=None, ge=0)
     rating: float | None = Field(default=None, ge=0, le=5)
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def precio_entero(cls, value):
+        return _importe_entero(value)
 
     @field_validator("category")
     @classmethod
