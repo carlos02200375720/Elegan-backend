@@ -40,7 +40,7 @@ def _importe_almacenado(valor: Any) -> Any:
     texto = valor.strip().replace("RD$", "").replace("$", "").replace(" ", "")
     if "," in texto:
         texto = texto.replace(".", "").replace(",", ".")
-    elif re.fullmatch(r"-?\\d{1,3}(\\.\\d{3})+", texto):
+    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", texto):
         texto = texto.replace(".", "")
     try:
         return Decimal(texto)
