@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from backend.logica.moneda import formatear_moneda
+from backend.logica.moneda import formatear_moneda, validar_importe_entero
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_CARRITO = "cart"
@@ -66,7 +66,7 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
     if producto is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
 
-    cantidad = datos.get("quantity", 1)
+    validar_importe_entero(producto.get("price"), permitir_cero=False)\n    cantidad = datos.get("quantity", 1)
     if isinstance(cantidad, bool) or not isinstance(cantidad, int) or not 1 <= cantidad <= 99:
         raise HTTPException(status_code=400, detail="INVALID_QUANTITY")
 
@@ -82,7 +82,7 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
         raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
     if not shipping_methods and shipping_id:
         raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
-    filtro = {
+    precio_envio = validar_importe_entero(metodo_envio.get("price", 0)) if metodo_envio else 0\n    filtro = {
         "userId": user_id,
         "productId": product_id,
         "selectedSize": talla,
@@ -99,7 +99,7 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
         "imageUrl": producto.get("imageUrl", ""),
         "shippingMethodId": metodo_envio.get("id") if metodo_envio else "",
         "shippingMethodName": metodo_envio.get("name", "") if metodo_envio else "",
-        "shippingPrice": float(metodo_envio.get("price", 0)) if metodo_envio else 0.0,
+        "shippingPrice": precio_envio,
         "shippingDeliveryTime": metodo_envio.get("deliveryTime", "") if metodo_envio else "",
         "shippingOrigin": metodo_envio.get("origin", "") if metodo_envio else "",
         "allowCashOnDelivery": producto.get("allowCashOnDelivery", True),
