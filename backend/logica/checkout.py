@@ -7,7 +7,6 @@ from fastapi import HTTPException
 
 from backend.logica.pagos_transferencia import liberar_transferencias_vencidas, preparar_pago_transferencia
 from backend.logica.pagos_contraentrega import preparar_pago_contraentrega, validar_producto_para_contraentrega
-from backend.logica.moneda import formatear_moneda
 
 CUENTAS = "bank_accounts"
 ORDENES = "orders"
