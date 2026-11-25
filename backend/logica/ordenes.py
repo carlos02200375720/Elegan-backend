@@ -1,7 +1,5 @@
-import re
 import uuid
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import HTTPException
@@ -34,32 +32,18 @@ def inicializar_indices_ordenes(db: Any) -> None:
     )
 
 
-def _importe_almacenado(valor: Any) -> Any:
-    if not isinstance(valor, str):
-        return valor
-    texto = valor.strip().replace("RD$", "").replace("$", "").replace(" ", "")
-    if "," in texto:
-        texto = texto.replace(".", "").replace(",", ".")
-    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", texto):
-        texto = texto.replace(".", "")
-    try:
-        return Decimal(texto)
-    except (InvalidOperation, TypeError, ValueError):
-        return valor
-
-
 def formatear_orden(documento: dict) -> dict:
     orden = dict(documento)
     orden["id"] = str(orden.pop("_id"))
     for campo in ("subtotalDOP", "shippingTotalDOP", "couponDiscountDOP", "total", "totalDOP"):
         if campo in orden:
-            orden[campo + "Formatted"] = formatear_moneda(_importe_almacenado(orden[campo]))
+            orden[campo + "Formatted"] = formatear_moneda(orden[campo])
     items = orden.get("items")
     if isinstance(items, list):
         orden["items"] = [
             {**item,
-             **({"priceFormatted": formatear_moneda(_importe_almacenado(item["priceDOP"]))} if "priceDOP" in item else {}),
-             **({"shippingPriceFormatted": formatear_moneda(_importe_almacenado(item["shippingPriceDOP"]))} if "shippingPriceDOP" in item else {})}
+             **({"priceFormatted": formatear_moneda(item["priceDOP"])} if "priceDOP" in item else {}),
+             **({"shippingPriceFormatted": formatear_moneda(item["shippingPriceDOP"])} if "shippingPriceDOP" in item else {})}
             if isinstance(item, dict) else item
             for item in items
         ]
