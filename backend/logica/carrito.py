@@ -66,7 +66,8 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
     if producto is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
 
-    validar_importe_entero(producto.get("price"), permitir_cero=False)\n    cantidad = datos.get("quantity", 1)
+    validar_importe_entero(producto.get("price"), permitir_cero=False)
+    cantidad = datos.get("quantity", 1)
     if isinstance(cantidad, bool) or not isinstance(cantidad, int) or not 1 <= cantidad <= 99:
         raise HTTPException(status_code=400, detail="INVALID_QUANTITY")
 
@@ -82,7 +83,8 @@ def agregar_al_carrito(db: Any, user: dict, datos: dict) -> dict:
         raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
     if not shipping_methods and shipping_id:
         raise HTTPException(status_code=400, detail="INVALID_SHIPPING_METHOD")
-    precio_envio = validar_importe_entero(metodo_envio.get("price", 0)) if metodo_envio else 0\n    filtro = {
+    precio_envio = validar_importe_entero(metodo_envio.get("price", 0)) if metodo_envio else 0
+    filtro = {
         "userId": user_id,
         "productId": product_id,
         "selectedSize": talla,
