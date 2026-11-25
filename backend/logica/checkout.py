@@ -12,7 +12,7 @@ CUENTAS = "bank_accounts"
 ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
-CENTAVO = Decimal("0.01")
+UNIDAD = Decimal("1")
 
 
 def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
@@ -22,12 +22,12 @@ def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
         raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
     if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
         raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
-    return amount.quantize(CENTAVO, rounding=ROUND_HALF_UP)
+    return amount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
 
 
 def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
     if not code:
-        return Decimal("0.00")
+        return Decimal("0")
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
     return discount
@@ -88,10 +88,10 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
                       "shippingMethodName": ship_method.get("name", "") if ship_method else "",
                       "shippingPriceDOP": float(ship_price),
                       "selectedSize": entry.get("selectedSize"), "selectedColor": entry.get("selectedColor")})
-    subtotal, shipping = subtotal.quantize(CENTAVO), shipping.quantize(CENTAVO)
+    subtotal, shipping = subtotal.quantize(UNIDAD, rounding=ROUND_HALF_UP), shipping.quantize(UNIDAD, rounding=ROUND_HALF_UP)
     coupon_code = str(data.get("couponCode") or "").strip().upper()
     discount = _coupon_discount(db, coupon_code, subtotal)
-    total = (subtotal - discount + shipping).quantize(CENTAVO)
+    total = (subtotal - discount + shipping).quantize(UNIDAD, rounding=ROUND_HALF_UP)
     if total <= 0:
         raise HTTPException(status_code=409, detail="INVALID_ORDER_TOTAL")
 
