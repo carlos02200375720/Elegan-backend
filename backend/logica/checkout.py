@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from backend.logica.pagos_transferencia import liberar_transferencias_vencidas, preparar_pago_transferencia
 from backend.logica.pagos_contraentrega import preparar_pago_contraentrega, validar_producto_para_contraentrega
+from backend.logica.moneda import formatear_moneda
 
 CUENTAS = "bank_accounts"
 ORDENES = "orders"
@@ -83,10 +84,10 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         subtotal += price * qty
         shipping += ship_price
         items.append({"productId": product_id, "name": str(product.get("name") or "Producto")[:200],
-                      "priceDOP": format(price, ".2f"), "quantity": qty,
+                      "priceDOP": formatear_moneda(price), "quantity": qty,
                       "shippingMethodId": ship_method.get("id", "") if ship_method else "",
                       "shippingMethodName": ship_method.get("name", "") if ship_method else "",
-                      "shippingPriceDOP": format(ship_price, ".2f"),
+                      "shippingPriceDOP": formatear_moneda(ship_price),
                       "selectedSize": entry.get("selectedSize"), "selectedColor": entry.get("selectedColor")})
     subtotal, shipping = subtotal.quantize(CENTAVO), shipping.quantize(CENTAVO)
     coupon_code = str(data.get("couponCode") or "").strip().upper()
@@ -115,9 +116,9 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "city": str(data.get("city") or "").strip(), "items": items,
             "itemCount": sum(i["quantity"] for i in items),
             "itemsSummary": ", ".join(f'{i["name"]} x{i["quantity"]}' for i in items),
-            "subtotalDOP": format(subtotal, ".2f"), "shippingTotalDOP": format(shipping, ".2f"),
-            "couponCode": coupon_code, "couponDiscountDOP": format(discount, ".2f"),
-            "total": format(total, ".2f"), "totalDOP": format(total, ".2f"), "currency": "DOP",
+            "subtotalDOP": formatear_moneda(subtotal), "shippingTotalDOP": formatear_moneda(shipping),
+            "couponCode": coupon_code, "couponDiscountDOP": formatear_moneda(discount),
+            "total": formatear_moneda(total), "totalDOP": formatear_moneda(total), "currency": "DOP",
             "paymentMethod": method,
             **payment_details,
             "paymentProofUrl": "", "createdAt": now, "updatedAt": now,
