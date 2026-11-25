@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 
 class MetodoEnvioProducto(BaseModel):
@@ -8,7 +8,7 @@ class MetodoEnvioProducto(BaseModel):
 
     id: str = Field(min_length=1, max_length=80)
     name: str = Field(min_length=1, max_length=100)
-    price: float = Field(ge=0)
+    price: StrictInt = Field(ge=0)
     deliveryTime: str = Field(min_length=1, max_length=100)
     origin: str = Field(min_length=1, max_length=120)
 
@@ -19,7 +19,7 @@ class ProductoBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     category: str = "todo"
-    price: float = Field(default=0, ge=0)
+    price: StrictInt = Field(default=0, ge=0)
     imageUrl: str = ""
     images: list[str] = Field(default_factory=list)
     videoUrl: str = ""
@@ -60,7 +60,7 @@ class ProductoActualizar(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     category: str | None = None
-    price: float | None = Field(default=None, ge=0)
+    price: StrictInt | None = Field(default=None, ge=0)
     imageUrl: str | None = None
     images: list[str] | None = None
     videoUrl: str | None = None
