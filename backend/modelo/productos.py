@@ -101,7 +101,7 @@ class ProductoActualizar(BaseModel):
     @field_validator("price", mode="before")
     @classmethod
     def precio_entero(cls, value):
-        return _importe_entero(value)
+        return None if value is None else _importe_entero(value)
 
     @field_validator("category")
     @classmethod
