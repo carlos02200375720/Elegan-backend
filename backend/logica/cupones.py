@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException
@@ -108,9 +107,8 @@ def calcular_descuento_cupon(db: Any, codigo: str, subtotal: int) -> tuple[dict,
         if valor > 100:
             raise HTTPException(status_code=409, detail="INVALID_COUPON_CONFIGURATION")
         numerador = subtotal * valor
-        if numerador % 100:
-            raise HTTPException(status_code=409, detail="COUPON_DISCOUNT_NOT_INTEGER")
-        descuento = numerador // 100
+        # Importes no negativos: redondeo convencional al entero más cercano.
+        descuento = (numerador + 50) // 100
     elif tipo == "fixed":
         descuento = valor
     else:
