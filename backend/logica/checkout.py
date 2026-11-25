@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
 from typing import Any
 from uuid import uuid4
 
@@ -21,7 +21,7 @@ def _money(value: Any, *, allow_zero: bool = False) -> int:
         raise HTTPException(status_code=409, detail="INVALID_AMOUNT") from error
 
 
-def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
+def _coupon_discount(db: Any, code: str, subtotal: int) -> int:
     if not code:
         return Decimal("0")
     from backend.logica.cupones import calcular_descuento_cupon
