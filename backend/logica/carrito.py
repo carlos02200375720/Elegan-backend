@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+
+from backend.logica.moneda import formatear_moneda
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_CARRITO = "cart"
@@ -34,6 +36,10 @@ def inicializar_indices_carrito(db: Any) -> None:
 def formatear_item_carrito(documento: dict) -> dict:
     item = dict(documento)
     item["id"] = str(item.pop("_id"))
+    if "price" in item:
+        item["priceFormatted"] = formatear_moneda(item["price"])
+    if "shippingPrice" in item:
+        item["shippingPriceFormatted"] = formatear_moneda(item["shippingPrice"])
     return item
 
 
