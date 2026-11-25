@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from backend.logica.moneda import formatear_moneda
+from backend.logica.moneda import formatear_moneda, normalizar_importe_entero
 from pymongo import ASCENDING
 
 COLECCION_CUPONES = "coupons"
@@ -20,14 +20,11 @@ def inicializar_indices_cupones(db: Any) -> None:
     )
 
 
-def _importe(valor: Any) -> Decimal:
+def _importe(valor: Any) -> int:
     try:
-        importe = Decimal(str(valor))
-    except (InvalidOperation, TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="INVALID_COUPON_VALUE")
-    if not importe.is_finite() or importe <= 0:
-        raise HTTPException(status_code=400, detail="INVALID_COUPON_VALUE")
-    return importe.quantize(CENTAVO, rounding=ROUND_HALF_UP)
+        return normalizar_importe_entero(valor, permitir_cero=False)
+    except HTTPException as error:
+        raise HTTPException(status_code=400, detail="INVALID_COUPON_VALUE") from error
 
 
 def formatear_cupon(documento: dict) -> dict:
@@ -54,7 +51,7 @@ def crear_cupon(db: Any, datos: dict) -> dict:
         "_id": codigo,
         "code": codigo,
         "discountType": tipo,
-        "discountValue": float(valor),
+        "discountValue": valor,
         "isActive": bool(datos.get("isActive", True)),
         "createdAt": ahora,
         "updatedAt": ahora,
@@ -79,7 +76,7 @@ def actualizar_cupon(db: Any, codigo: str, datos: dict) -> dict:
             tipo = actual.get("discountType") if actual else None
         if tipo == "percentage" and valor > 100:
             raise HTTPException(status_code=400, detail="INVALID_COUPON_VALUE")
-        datos["discountValue"] = float(valor)
+        datos["discountValue"] = valor
     if "discountType" in datos and datos["discountType"] == "percentage":
         actual = db[COLECCION_CUPONES].find_one({"_id": codigo})
         valor = datos.get("discountValue", actual.get("discountValue") if actual else 0)
@@ -99,7 +96,7 @@ def eliminar_cupon(db: Any, codigo: str) -> dict:
     return {"success": True}
 
 
-def calcular_descuento_cupon(db: Any, codigo: str, subtotal: Decimal) -> tuple[dict, Decimal]:
+def calcular_descuento_cupon(db: Any, codigo: str, subtotal: int) -> tuple[dict, int]:
     codigo = str(codigo or "").strip().upper()
     if not codigo:
         raise HTTPException(status_code=400, detail="COUPON_CODE_REQUIRED")
@@ -111,12 +108,12 @@ def calcular_descuento_cupon(db: Any, codigo: str, subtotal: Decimal) -> tuple[d
     if tipo == "percentage":
         if valor > 100:
             raise HTTPException(status_code=409, detail="INVALID_COUPON_CONFIGURATION")
-        descuento = subtotal * valor / Decimal("100")
+        descuento = (subtotal * valor + 50) // 100
     elif tipo == "fixed":
         descuento = valor
     else:
         raise HTTPException(status_code=409, detail="INVALID_COUPON_CONFIGURATION")
-    descuento = min(descuento, subtotal).quantize(CENTAVO, rounding=ROUND_HALF_UP)
+    descuento = min(descuento, subtotal)
     return cupon, descuento
 
 
@@ -134,7 +131,7 @@ def validar_cupon_cliente(
         if len(carrito_seleccionado) != len(selected):
             raise HTTPException(status_code=409, detail="CART_ITEMS_CHANGED")
         carrito = carrito_seleccionado
-    subtotal = Decimal("0.00")
+    subtotal = 0
     for item in carrito:
         cantidad = item.get("quantity")
         product_id = str(item.get("productId") or "")
@@ -144,7 +141,6 @@ def validar_cupon_cliente(
         if producto is None:
             raise HTTPException(status_code=409, detail="PRODUCT_NOT_FOUND")
         subtotal += _importe(producto.get("price")) * cantidad
-    subtotal = subtotal.quantize(CENTAVO, rounding=ROUND_HALF_UP)
     cupon, descuento = calcular_descuento_cupon(db, codigo, subtotal)
     return {
         "valid": True,
