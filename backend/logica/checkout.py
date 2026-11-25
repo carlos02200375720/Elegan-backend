@@ -30,7 +30,7 @@ def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
         return Decimal("0")
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
-    return discount
+    return discount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
 
 
 def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
@@ -60,7 +60,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     selected_cart_ids = [entry["_id"] for entry in selected_cart]
     cart = selected_cart
 
-    items, subtotal, shipping = [], Decimal("0.00"), Decimal("0.00")
+    items, subtotal, shipping = [], Decimal("0"), Decimal("0.00")
     for entry in cart:
         product_id, qty = str(entry.get("productId") or ""), entry.get("quantity")
         if not product_id or isinstance(qty, bool) or not isinstance(qty, int) or qty < 1:
