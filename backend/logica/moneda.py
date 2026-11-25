@@ -1,14 +1,16 @@
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 
+def validar_importe_entero(valor: Any, *, permitir_cero: bool = True) -> int:
+    """Acepta exclusivamente enteros reales; nunca convierte ni redondea."""
+    if type(valor) is not int or valor < 0 or (not permitir_cero and valor == 0):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="INVALID_AMOUNT")
+    return valor
+
+
 def formatear_moneda(valor: Any) -> str:
-    """Muestra únicamente importes enteros con punto como separador de millares."""
-    try:
-        numero = Decimal(str(valor))
-    except (InvalidOperation, TypeError, ValueError):
+    """Formatea importes enteros con punto como separador de millares."""
+    if type(valor) is not int or valor < 0:
         return "0"
-    if not numero.is_finite():
-        return "0"
-    entero = int(numero.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-    return f"{entero:,}".replace(",", ".")
+    return f"{valor:,}".replace(",", ".")
