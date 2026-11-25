@@ -3,6 +3,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import HTTPException
+
+from backend.logica.moneda import formatear_moneda
 from pymongo import ASCENDING
 
 COLECCION_CUPONES = "coupons"
@@ -147,7 +149,7 @@ def validar_cupon_cliente(
         "code": cupon["code"],
         "discountType": cupon["discountType"],
         "discountValue": cupon["discountValue"],
-        "discountAmountDOP": format(descuento, ".2f"),
-        "subtotalDOP": format(subtotal, ".2f"),
-        "totalAfterDiscountDOP": format(subtotal - descuento, ".2f"),
+        "discountAmountDOP": formatear_moneda(descuento),
+        "subtotalDOP": formatear_moneda(subtotal),
+        "totalAfterDiscountDOP": formatear_moneda(subtotal - descuento),
     }
