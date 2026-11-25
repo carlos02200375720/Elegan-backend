@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 from uuid import uuid4
 
@@ -7,30 +6,25 @@ from fastapi import HTTPException
 
 from backend.logica.pagos_transferencia import liberar_transferencias_vencidas, preparar_pago_transferencia
 from backend.logica.pagos_contraentrega import preparar_pago_contraentrega, validar_producto_para_contraentrega
+from backend.logica.moneda import validar_importe_entero
 
 CUENTAS = "bank_accounts"
 ORDENES = "orders"
 CARRITO = "cart"
 PRODUCTOS = "products"
-UNIDAD = Decimal("1")
-
-
-def _money(value: Any, *, allow_zero: bool = False) -> Decimal:
+def _money(value: Any, *, allow_zero: bool = False) -> int:
     try:
-        amount = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError):
-        raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
-    if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
-        raise HTTPException(status_code=409, detail="INVALID_AMOUNT")
-    return amount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
+        return validar_importe_entero(value, permitir_cero=allow_zero)
+    except HTTPException as error:
+        raise HTTPException(status_code=409, detail="INVALID_AMOUNT") from error
 
 
-def _coupon_discount(db: Any, code: str, subtotal: Decimal) -> Decimal:
+def _coupon_discount(db: Any, code: str, subtotal: int) -> int:
     if not code:
-        return Decimal("0")
+        return 0
     from backend.logica.cupones import calcular_descuento_cupon
     _, discount = calcular_descuento_cupon(db, code, subtotal)
-    return discount.quantize(UNIDAD, rounding=ROUND_HALF_UP)
+    return discount
 
 
 def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
@@ -60,7 +54,7 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
     selected_cart_ids = [entry["_id"] for entry in selected_cart]
     cart = selected_cart
 
-    items, subtotal, shipping = [], Decimal("0"), Decimal("0.00")
+    items, subtotal, shipping = [], 0, 0
     for entry in cart:
         product_id, qty = str(entry.get("productId") or ""), entry.get("quantity")
         if not product_id or isinstance(qty, bool) or not isinstance(qty, int) or qty < 1:
@@ -79,19 +73,18 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
         ship_method = next((m for m in methods if str(m.get("id") or "") == shipping_id), None) if shipping_id else None
         if methods and ship_method is None:
             raise HTTPException(status_code=409, detail="SHIPPING_METHOD_REQUIRED")
-        ship_price = _money(ship_method.get("price", 0), allow_zero=True) if ship_method else Decimal("0.00")
+        ship_price = _money(ship_method.get("price", 0), allow_zero=True) if ship_method else 0
         subtotal += price * qty
         shipping += ship_price
         items.append({"productId": product_id, "name": str(product.get("name") or "Producto")[:200],
-                      "priceDOP": float(price), "quantity": qty,
+                      "priceDOP": price, "quantity": qty,
                       "shippingMethodId": ship_method.get("id", "") if ship_method else "",
                       "shippingMethodName": ship_method.get("name", "") if ship_method else "",
-                      "shippingPriceDOP": float(ship_price),
+                      "shippingPriceDOP": ship_price,
                       "selectedSize": entry.get("selectedSize"), "selectedColor": entry.get("selectedColor")})
-    subtotal, shipping = subtotal.quantize(UNIDAD, rounding=ROUND_HALF_UP), shipping.quantize(UNIDAD, rounding=ROUND_HALF_UP)
     coupon_code = str(data.get("couponCode") or "").strip().upper()
     discount = _coupon_discount(db, coupon_code, subtotal)
-    total = (subtotal - discount + shipping).quantize(UNIDAD, rounding=ROUND_HALF_UP)
+    total = subtotal - discount + shipping
     if total <= 0:
         raise HTTPException(status_code=409, detail="INVALID_ORDER_TOTAL")
 
@@ -115,9 +108,9 @@ def crear_orden_pago(db: Any, user: dict, data: dict) -> dict:
             "city": str(data.get("city") or "").strip(), "items": items,
             "itemCount": sum(i["quantity"] for i in items),
             "itemsSummary": ", ".join(f'{i["name"]} x{i["quantity"]}' for i in items),
-            "subtotalDOP": float(subtotal), "shippingTotalDOP": float(shipping),
-            "couponCode": coupon_code, "couponDiscountDOP": float(discount),
-            "total": float(total), "totalDOP": float(total), "currency": "DOP",
+            "subtotalDOP": subtotal, "shippingTotalDOP": shipping,
+            "couponCode": coupon_code, "couponDiscountDOP": discount,
+            "total": total, "totalDOP": total, "currency": "DOP",
             "paymentMethod": method,
             **payment_details,
             "paymentProofUrl": "", "createdAt": now, "updatedAt": now,
