@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 
 class CuponCrear(BaseModel):
@@ -8,7 +8,7 @@ class CuponCrear(BaseModel):
 
     code: str = Field(min_length=2, max_length=40)
     discountType: Literal["percentage", "fixed"]
-    discountValue: float = Field(gt=0)
+    discountValue: StrictInt = Field(gt=0)
     isActive: bool = True
 
     @field_validator("code")
@@ -21,22 +21,22 @@ class CuponCrear(BaseModel):
 
     @field_validator("discountValue")
     @classmethod
-    def validar_valor(cls, value: float, info):
+    def validar_valor(cls, value: int, info):
         if info.data.get("discountType") == "percentage" and value > 100:
             raise ValueError("INVALID_COUPON_VALUE")
-        return round(value, 2)
+        return value
 
 
 class CuponActualizar(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     discountType: Literal["percentage", "fixed"] | None = None
-    discountValue: float | None = Field(default=None, gt=0)
+    discountValue: StrictInt | None = Field(default=None, gt=0)
     isActive: bool | None = None
 
     @field_validator("discountValue")
     @classmethod
-    def validar_valor(cls, value: float | None) -> float | None:
+    def validar_valor(cls, value: int | None) -> int | None:
         if value is not None and value > 100000000:
             raise ValueError("INVALID_COUPON_VALUE")
         return round(value, 2) if value is not None else value
