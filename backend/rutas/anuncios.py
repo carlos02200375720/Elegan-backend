@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from backend.modelo.anuncios import AnuncioActualizar, AnuncioCrear
 from backend.middleware.autorizacion import requerir_administrador
@@ -21,13 +21,21 @@ router_admin_anuncios = APIRouter(
 
 
 @router_movil_anuncios.get("")
-def listar_anuncios_movil(db=Depends(obtener_db)):
-    return listar_anuncios(db)
+def listar_anuncios_movil(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    db=Depends(obtener_db),
+):
+    return listar_anuncios(db, limit, cursor)
 
 
 @router_admin_anuncios.get("")
-def listar_anuncios_admin(db=Depends(obtener_db)):
-    return listar_anuncios(db)
+def listar_anuncios_admin(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    db=Depends(obtener_db),
+):
+    return listar_anuncios(db, limit, cursor)
 
 
 @router_admin_anuncios.post("", status_code=201)
