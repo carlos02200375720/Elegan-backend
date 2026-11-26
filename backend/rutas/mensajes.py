@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Query
-from fastapi.encoders import jsonable_encoder
 
 from backend.modelo.mensajes import MensajeCrear, RespuestaAdminCrear
 from backend.middleware.autorizacion import requerir_administrador
