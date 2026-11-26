@@ -3,7 +3,6 @@ import re
 import shutil
 import subprocess
 import tempfile
-from contextlib import ExitStack
 from datetime import datetime, timezone
 from uuid import uuid4
 from urllib.parse import quote
@@ -73,7 +72,7 @@ def _preparar_mp4_para_reproduccion(archivo, directorio: str) -> str:
 
 
 def guardar_multimedia(
-    archivo: UploadFile, nombre: str | None = None, prefijo: str = "movil"
+    archivo: UploadFile, nombre: str | None = None, prefijo: str = "movil", db=None
 ) -> dict:
     if not archivo:
         raise HTTPException(status_code=400, detail="FILE_REQUIRED")
@@ -102,28 +101,27 @@ def guardar_multimedia(
         objeto.cache_control = "public, max-age=31536000"
         objeto.content_type = content_type
 
-        with ExitStack() as recursos:
-            fuente = archivo.file
-            if content_type == "video/mp4":
-                directorio = recursos.enter_context(
-                    tempfile.TemporaryDirectory(prefix="elegan-mp4-")
-                )
-                ruta_preparada = _preparar_mp4_para_reproduccion(
-                    archivo.file, directorio
-                )
-                fuente = recursos.enter_context(open(ruta_preparada, "rb"))
+        # La carga se transmite por bloques directamente a GCS. El vídeo original
+        # queda disponible mientras el trabajador prepara la versión optimizada.
+        with objeto.open("wb", chunk_size=TAMANO_BLOQUE) as destino:
+            while True:
+                bloque = archivo.file.read(TAMANO_BLOQUE)
+                if not bloque:
+                    break
+                tamano += len(bloque)
+                if tamano > TAMANO_MAXIMO:
+                    raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
+                destino.write(bloque)
 
-            # La salida preparada se transmite a GCS por bloques; nunca se carga
-            # el MP4 completo en memoria. Los temporales se eliminan al terminar.
-            with objeto.open("wb", chunk_size=TAMANO_BLOQUE) as destino:
-                while True:
-                    bloque = fuente.read(TAMANO_BLOQUE)
-                    if not bloque:
-                        break
-                    tamano += len(bloque)
-                    if tamano > TAMANO_MAXIMO:
-                        raise HTTPException(status_code=413, detail="FILE_TOO_LARGE")
-                    destino.write(bloque)
+        if tamano == 0:
+            raise HTTPException(status_code=422, detail="EMPTY_FILE")
+
+        task_id = None
+        if content_type == "video/mp4":
+            if db is None:
+                raise HTTPException(status_code=503, detail="MEDIA_QUEUE_NOT_CONFIGURED")
+            from backend.logica.tareas_multimedia import encolar_procesamiento_video
+            task_id = encolar_procesamiento_video(db, object_name, content_type)
 
         url = (
             f"https://storage.googleapis.com/{settings.gcs_bucket_name}/"
@@ -134,19 +132,30 @@ def guardar_multimedia(
             "objectName": object_name,
             "contentType": content_type,
             "size": tamano,
+            "processingStatus": "pending" if task_id else "not_required",
+            "processingTaskId": task_id,
         }
     except HTTPException:
-        if objeto is not None and tamano > TAMANO_MAXIMO:
+        if objeto is not None:
             try:
                 objeto.delete()
             except Exception:
                 pass
         raise
     except GoogleAPIError as error:
+        if objeto is not None:
+            try:
+                objeto.delete()
+            except Exception:
+                pass
         raise HTTPException(status_code=502, detail="MEDIA_STORAGE_ERROR") from error
     except Exception as error:
-        raise HTTPException(status_code=500, detail="MEDIA_UPLOAD_FAILED") from error
-
+        if objeto is not None:
+            try:
+                objeto.delete()
+            except Exception:
+                pass
+        raise HTTPException(status_code=503, detail="MEDIA_UPLOAD_OR_QUEUE_FAILED") from error
 
 def guardar_comprobante_privado(archivo: UploadFile, nombre: str | None = None) -> dict:
     """Guarda comprobantes en un bucket privado, separado del bucket público de catálogo."""
@@ -245,10 +254,45 @@ def _object_name_desde_url(url: str) -> str | None:
 
 
 def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
-    """Verifica referencias con consultas acotadas, sin materializar colecciones."""
-    candidatos: set[str] = set()
+    """Encola la limpieza; nunca bloquea la petición que modifica el catálogo."""
+    referencias: set[str] = set()
     for documento in documentos:
-        candidatos.update(_referencias_multimedia(documento))
+        referencias.update(_referencias_multimedia(documento))
+    if not referencias:
+        return
+    try:
+        from backend.logica.tareas_multimedia import encolar_limpieza_multimedia
+        encolar_limpieza_multimedia(db, referencias)
+    except Exception:
+        # Ante un fallo de cola se conserva el archivo. Un huérfano es preferible
+        # a borrar un medio todavía utilizado o hacer fallar una edición ya guardada.
+        import logging
+        logging.getLogger("elegan.media").exception(
+            "No se pudo encolar la limpieza multimedia; los archivos se conservan."
+        )
+
+
+def preparar_video_gcs(object_name: str, content_type: str = "video/mp4") -> None:
+    """Prepara un MP4 en disco temporal y reemplaza el mismo objeto en GCS."""
+    if not settings.gcs_bucket_name:
+        raise RuntimeError("MEDIA_STORAGE_NOT_CONFIGURED")
+    bucket = storage.Client().bucket(settings.gcs_bucket_name)
+    objeto = bucket.blob(object_name)
+    with tempfile.TemporaryDirectory(prefix="elegan-video-task-") as directorio:
+        with objeto.open("rb") as fuente:
+            ruta_preparada = _preparar_mp4_para_reproduccion(fuente, directorio)
+        objeto.cache_control = "public, max-age=31536000"
+        objeto.content_type = content_type
+        objeto.upload_from_filename(
+            ruta_preparada,
+            content_type=content_type,
+            timeout=300,
+        )
+
+
+def eliminar_referencias_multimedia_sin_uso(db, referencias: list[str]) -> None:
+    """Elimina objetos solo después de verificar que ninguna colección los use."""
+    candidatos = {str(item).strip() for item in referencias if str(item).strip()}
     if not candidatos:
         return
 
@@ -266,10 +310,11 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
         condiciones.extend({campo: {"$in": urls}} for campo in campos_url)
     if nombres:
         condiciones.extend({campo: {"$in": nombres}} for campo in campos_objeto)
+    if not condiciones:
+        return
     consulta = {"$or": condiciones}
 
-    # find_one solo obtiene el primer uso. Ante timeout/error se conserva el
-    # archivo: es preferible dejar un huérfano a borrar un medio compartido.
+    # Si una consulta falla o excede su límite, se aborta sin borrar nada.
     try:
         for nombre_coleccion in db.list_collection_names():
             try:
@@ -298,6 +343,4 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
             except NotFound:
                 continue
     except GoogleAPIError as error:
-        raise HTTPException(
-            status_code=502, detail="MEDIA_CLEANUP_FAILED"
-        ) from error
+        raise RuntimeError("MEDIA_CLEANUP_FAILED") from error
