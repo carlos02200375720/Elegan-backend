@@ -93,9 +93,13 @@ def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
                 "reservationStatus": "consumed",
             })
 
+        state_filter = {"_id": order_id, "status": existente.get("status")}
+        if "inventoryReserved" in existente:
+            state_filter["inventoryReserved"] = existente["inventoryReserved"]
+        else:
+            state_filter["inventoryReserved"] = {"$exists": False}
         result = coleccion.update_one(
-            {"_id": order_id, "status": existente.get("status"),
-             "inventoryReserved": existente.get("inventoryReserved", False)},
+            state_filter,
             {"$set": changes},
             session=session,
         )
