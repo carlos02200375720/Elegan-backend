@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.encoders import jsonable_encoder
 
 from backend.modelo.mensajes import MensajeCrear, RespuestaAdminCrear
 from backend.middleware.autorizacion import requerir_administrador
@@ -113,10 +114,10 @@ async def transmitir_mensajes_admin(websocket: WebSocket):
             evento = await asyncio.to_thread(cursor.try_next)
             if evento and evento.get("fullDocument"):
                 mensaje = formatear_mensaje(dict(evento["fullDocument"]))
-                await websocket.send_json({
+                await websocket.send_json(jsonable_encoder({
                     "type": "message_created",
                     "message": mensaje,
-                })
+                }))
 
             ahora = asyncio.get_running_loop().time()
             if ahora - ultimo_heartbeat >= 20:
