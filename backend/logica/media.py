@@ -256,7 +256,7 @@ def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
     nombres = [item[len("object:"):] for item in candidatos if item.startswith("object:")]
     campos_url = (
         "imageUrl", "videoUrl", "videoPoster", "url", "mediaUrl", "mediaUrls",
-        "images.url", "media.url", "files.url",
+        "images", "media", "files", "images.url", "media.url", "files.url",
     )
     campos_objeto = (
         "objectName", "images.objectName", "media.objectName", "files.objectName",
