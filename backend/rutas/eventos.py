@@ -106,7 +106,11 @@ async def _servir_eventos(websocket: WebSocket, cliente: str) -> None:
                         # Los cambios privados solo se notifican al dueño del dato.
                         # En eliminaciones MongoDB no incluye fullDocument; se omiten
                         # para no revelar actividad de otras cuentas.
-                        if usuario is None or not user_id or user_id != str(usuario.get("_id")):
+                        pertenece_al_usuario = bool(usuario) and (
+                            user_id == str(usuario.get("_id"))
+                            or (coleccion == "usuarios" and str(documento.get("_id") or "") == str(usuario.get("_id")))
+                        )
+                        if not pertenece_al_usuario:
                             continue
 
                 clave = evento.get("documentKey") or {}
