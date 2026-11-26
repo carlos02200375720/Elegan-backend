@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from backend.modelo.anuncios import AnuncioActualizar, AnuncioCrear
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db
+from backend.logica.tareas_multimedia import procesar_tareas_multimedia
 from backend.logica.anuncios import (
     actualizar_anuncio,
     crear_anuncio,
@@ -45,13 +46,24 @@ def crear_anuncio_admin(datos: AnuncioCrear, db=Depends(obtener_db)):
 
 @router_admin_anuncios.patch("/{anuncio_id}")
 def actualizar_anuncio_admin(
-    anuncio_id: str, datos: AnuncioActualizar, db=Depends(obtener_db)
+    anuncio_id: str,
+    datos: AnuncioActualizar,
+    background_tasks: BackgroundTasks,
+    db=Depends(obtener_db),
 ):
-    return actualizar_anuncio(
+    resultado = actualizar_anuncio(
         db, anuncio_id, datos.model_dump(exclude_unset=True)
     )
+    background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
 
 
 @router_admin_anuncios.delete("/{anuncio_id}")
-def eliminar_anuncio_admin(anuncio_id: str, db=Depends(obtener_db)):
-    return eliminar_anuncio(db, anuncio_id)
+def eliminar_anuncio_admin(
+    anuncio_id: str,
+    background_tasks: BackgroundTasks,
+    db=Depends(obtener_db),
+):
+    resultado = eliminar_anuncio(db, anuncio_id)
+    background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
