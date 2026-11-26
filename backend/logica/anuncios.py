@@ -7,6 +7,8 @@ from fastapi import HTTPException
 from backend.logica.media import eliminar_medios_sin_referencias
 from pymongo.collection import Collection
 
+from backend.logica.paginacion import obtener_pagina
+
 NOMBRE_COLECCION_ANUNCIOS = "announcements"
 
 
@@ -22,13 +24,18 @@ def formatear_anuncio(documento: dict | None) -> dict | None:
     return anuncio
 
 
-def listar_anuncios(db: Any) -> dict:
-    documentos = (
-        coleccion_anuncios(db)
-        .find({"isActive": True})
-        .sort("createdAt", -1)
+def listar_anuncios(
+    db: Any, limit: int = 50, cursor: str | None = None
+) -> dict:
+    pagina = obtener_pagina(
+        coleccion_anuncios(db), {"isActive": True},
+        limit=limit, cursor=cursor, direccion=-1,
     )
-    return {"items": [formatear_anuncio(item) for item in documentos]}
+    return {
+        "items": [formatear_anuncio(item) for item in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
 def crear_anuncio(db: Any, datos: dict) -> dict:

@@ -23,12 +23,18 @@ router_admin_productos = APIRouter(
 
 
 @router_movil_productos.get("")
-def listar_productos_movil(db=Depends(obtener_db)):
+def listar_productos_movil(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    db=Depends(obtener_db),
+):
     # El catálogo móvil expone productos publicados y su conteo persistente de comentarios.
     return listar_productos(
         db,
         solo_publicados=True,
         incluir_conteo_comentarios=True,
+        limit=limit,
+        cursor=cursor,
     )
 
 
@@ -49,9 +55,13 @@ def obtener_producto_movil(product_id: str, db=Depends(obtener_db)):
 
 
 @router_admin_productos.get("")
-def listar_productos_admin(db=Depends(obtener_db)):
+def listar_productos_admin(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    db=Depends(obtener_db),
+):
     # El panel necesita ver tanto borradores como productos publicados.
-    return listar_productos(db)
+    return listar_productos(db, limit=limit, cursor=cursor)
 
 
 @router_admin_productos.get("/{product_id}")

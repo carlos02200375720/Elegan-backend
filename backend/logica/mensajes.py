@@ -1,9 +1,14 @@
+import base64
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from pymongo import ASCENDING, DESCENDING
 from pymongo.collection import Collection
+
+from backend.logica.paginacion import obtener_pagina
 
 NOMBRE_COLECCION_MENSAJES = "supportMessages"
 DIAS_RETENCION_CONVERSACION = 30
@@ -20,8 +25,12 @@ def coleccion_mensajes(db: Any) -> Collection:
 def inicializar_indices_mensajes(db: Any) -> None:
     coleccion = coleccion_mensajes(db)
     coleccion.create_index(
-        [("userId", 1), ("createdAt", 1)],
-        name="idx_support_messages_user_created_at",
+        [("userId", ASCENDING), ("createdAt", ASCENDING), ("_id", ASCENDING)],
+        name="idx_support_messages_user_created_id",
+    )
+    coleccion.create_index(
+        [("createdAt", DESCENDING), ("_id", DESCENDING)],
+        name="idx_support_messages_created_id",
     )
     coleccion.create_index(
         [("expiresAt", 1)],
@@ -29,27 +38,6 @@ def inicializar_indices_mensajes(db: Any) -> None:
         name="ttl_support_messages_expires_at",
     )
 
-    # Migra mensajes existentes: todos los mensajes de cada conversación
-    # vencen 30 días después de su actividad más reciente.
-    conversaciones_pendientes = coleccion.aggregate([
-        {"$match": {"expiresAt": {"$exists": False}}},
-        {"$group": {"_id": "$userId"}},
-    ])
-    for conversacion in conversaciones_pendientes:
-        user_id = conversacion.get("_id")
-        if not user_id:
-            continue
-        ultimo_mensaje = coleccion.find_one(
-            {"userId": user_id},
-            sort=[("createdAt", -1)],
-            projection={"createdAt": 1},
-        )
-        ultima_actividad = (ultimo_mensaje or {}).get("createdAt")
-        if isinstance(ultima_actividad, datetime):
-            coleccion.update_many(
-                {"userId": user_id},
-                {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
-            )
 
 
 def formatear_mensaje(documento: dict) -> dict:
@@ -58,24 +46,71 @@ def formatear_mensaje(documento: dict) -> dict:
     return mensaje
 
 
-def listar_mensajes(db: Any, user: dict) -> dict:
-    user_id = str(user["_id"])
-    mensajes = (
-        coleccion_mensajes(db)
-        .find({"userId": user_id})
-        .sort("createdAt", 1)
+def listar_mensajes(
+    db: Any, user: dict, limit: int = 50, cursor: str | None = None
+) -> dict:
+    pagina = obtener_pagina(
+        coleccion_mensajes(db), {"userId": str(user["_id"])},
+        limit=limit, cursor=cursor, direccion=1,
     )
-    return {"items": [formatear_mensaje(item) for item in mensajes]}
+    return {
+        "items": [formatear_mensaje(item) for item in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
-def listar_mensajes_admin(db: Any, user_id: str | None = None) -> dict:
-    filtro = {"userId": user_id} if user_id else {}
-    mensajes = (
-        coleccion_mensajes(db)
-        .find(filtro)
-        .sort([("userId", 1), ("createdAt", 1)])
-    )
-    return {"items": [formatear_mensaje(item) for item in mensajes]}
+def listar_mensajes_admin(
+    db: Any, user_id: str | None = None,
+    limit: int = 50, cursor: str | None = None,
+) -> dict:
+    coleccion = coleccion_mensajes(db)
+    if user_id:
+        pagina = obtener_pagina(
+            coleccion, {"userId": user_id},
+            limit=limit, cursor=cursor, direccion=1,
+        )
+    else:
+        # Conserva el orden histórico del panel: agrupa por cliente y ordena
+        # cronológicamente dentro de cada conversación.
+        limite = min(100, max(1, int(limit)))
+        filtro = {}
+        if cursor:
+            try:
+                raw = base64.urlsafe_b64decode(cursor.encode("ascii") + b"===")
+                posicion = json.loads(raw.decode("utf-8"))
+                fecha = datetime.fromisoformat(posicion["createdAt"])
+                user_cursor = str(posicion["userId"])
+                id_cursor = str(posicion["id"])
+                filtro = {"$or": [
+                    {"userId": {"$gt": user_cursor}},
+                    {"userId": user_cursor, "createdAt": {"$gt": fecha}},
+                    {"userId": user_cursor, "createdAt": fecha, "_id": {"$gt": id_cursor}},
+                ]}
+            except (ValueError, KeyError, TypeError, UnicodeError):
+                raise HTTPException(status_code=400, detail="INVALID_PAGE_CURSOR")
+        filas = list(
+            coleccion.find(filtro)
+            .sort([("userId", 1), ("createdAt", 1), ("_id", 1)])
+            .limit(limite + 1)
+        )
+        hay_mas = len(filas) > limite
+        documentos = filas[:limite]
+        siguiente = None
+        if hay_mas and documentos:
+            ultimo = documentos[-1]
+            token = json.dumps({
+                "userId": str(ultimo.get("userId") or ""),
+                "createdAt": ultimo["createdAt"].isoformat(),
+                "id": str(ultimo["_id"]),
+            }, separators=(",", ":")).encode("utf-8")
+            siguiente = base64.urlsafe_b64encode(token).decode("ascii").rstrip("=")
+        pagina = {"documents": documentos, "hasMore": hay_mas, "nextCursor": siguiente}
+    return {
+        "items": [formatear_mensaje(item) for item in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
 def _validar_texto(texto: Any) -> str:
@@ -139,3 +174,30 @@ def responder_mensaje_admin(
     mensaje["expiresAt"] = expiracion
     coleccion.insert_one(mensaje)
     return {"id": mensaje_id}
+
+
+def migrar_conversaciones_sin_expiracion(db: Any, batch_size: int = 200) -> int:
+    """Migra conversaciones antiguas en streaming, fuera del arranque HTTP."""
+    coleccion = coleccion_mensajes(db)
+    conversaciones = coleccion.aggregate(
+        [
+            {"$match": {"userId": {"$type": "string", "$ne": ""}}},
+            {"$group": {
+                "_id": "$userId",
+                "ultimaActividad": {"$max": "$createdAt"},
+                "pendientes": {"$sum": {"$cond": [
+                    {"$eq": [{"$type": "$expiresAt"}, "missing"]}, 1, 0
+                ]}},
+            }},
+            {"$match": {"pendientes": {"$gt": 0}, "ultimaActividad": {"$type": "date"}}},
+        ],
+        allowDiskUse=True,
+    ).batch_size(batch_size)
+    procesadas = 0
+    for conversacion in conversaciones:
+        coleccion.update_many(
+            {"userId": conversacion["_id"], "expiresAt": {"$exists": False}},
+            {"$set": {"expiresAt": _fecha_expiracion(conversacion["ultimaActividad"])}},
+        )
+        procesadas += 1
+    return procesadas

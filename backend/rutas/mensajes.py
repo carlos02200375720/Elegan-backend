@@ -26,10 +26,12 @@ router_admin_mensajes = APIRouter(
 
 @router_movil_mensajes.get("")
 def obtener_mensajes(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
     user=Depends(usuario_actual),
     db=Depends(obtener_db),
 ):
-    return listar_mensajes(db, user)
+    return listar_mensajes(db, user, limit, cursor)
 
 
 @router_movil_mensajes.post("", status_code=201)
@@ -44,10 +46,12 @@ def enviar_mensaje(
 @router_admin_mensajes.get("")
 def obtener_mensajes_admin(
     user_id: str | None = Query(default=None, min_length=1),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
     _admin=Depends(usuario_actual_admin),
     db=Depends(obtener_db),
 ):
-    return listar_mensajes_admin(db, user_id)
+    return listar_mensajes_admin(db, user_id, limit, cursor)
 
 
 @router_admin_mensajes.post("/{user_id}", status_code=201)

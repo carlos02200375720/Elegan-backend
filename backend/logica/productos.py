@@ -6,6 +6,8 @@ from fastapi import HTTPException
 from pymongo import DESCENDING
 from pymongo.collection import Collection
 
+from backend.logica.paginacion import obtener_pagina
+
 from backend.logica.media import eliminar_medios_sin_referencias
 from backend.logica.moneda import formatear_moneda
 
@@ -47,33 +49,35 @@ def listar_productos(
     db: Any,
     solo_publicados: bool = False,
     incluir_conteo_comentarios: bool = False,
+    limit: int = 50,
+    cursor: str | None = None,
 ) -> dict:
     filtro = {"isActive": True} if solo_publicados else {}
-    documentos = list(coleccion_productos(db).find(filtro).sort("createdAt", -1))
-
+    pagina = obtener_pagina(
+        coleccion_productos(db), filtro, limit=limit, cursor=cursor, direccion=-1
+    )
+    documentos = pagina["documents"]
     conteos_comentarios: dict[str, int] = {}
     if incluir_conteo_comentarios and documentos:
         ids_productos = [str(item.get("_id", "")) for item in documentos]
-        resultados = db["comments"].aggregate(
-            [
-                {"$match": {"productId": {"$in": ids_productos}}},
-                {"$group": {"_id": "$productId", "count": {"$sum": 1}}},
-            ]
-        )
+        resultados = db["comments"].aggregate([
+            {"$match": {"productId": {"$in": ids_productos}}},
+            {"$group": {"_id": "$productId", "count": {"$sum": 1}}},
+        ])
         conteos_comentarios = {
             str(item["_id"]): int(item["count"]) for item in resultados
         }
-
     items = []
     for documento in documentos:
         producto = formatear_producto(documento)
         if incluir_conteo_comentarios and producto is not None:
-            producto["commentsCount"] = conteos_comentarios.get(
-                str(producto["id"]), 0
-            )
+            producto["commentsCount"] = conteos_comentarios.get(str(producto["id"]), 0)
         items.append(producto)
-
-    return {"items": items}
+    return {
+        "items": items,
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
 
@@ -115,9 +119,11 @@ def recomendar_productos(db: Any, product_id: str, limit: int = 12) -> dict:
     if producto_base is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
 
+    # Ventana acotada: no descargar el catálogo completo para recomendar.
     candidatos = list(
         coleccion.find({"isActive": True, "_id": {"$ne": product_id}})
-        .sort("createdAt", DESCENDING)
+        .sort([("createdAt", DESCENDING), ("_id", DESCENDING)])
+        .limit(500)
     )
     # El sort de Mongo prioriza los más recientes en empates sin comparar
     # tipos de fecha distintos que puedan existir en documentos históricos.

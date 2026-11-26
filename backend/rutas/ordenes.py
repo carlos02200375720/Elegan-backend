@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from backend.modelo.ordenes import OrdenActualizarEstado
 from backend.middleware.autorizacion import requerir_administrador
@@ -21,17 +21,21 @@ router_admin_ordenes = APIRouter(
 
 @router_movil_ordenes.get("")
 def listar_ordenes_movil(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
     user=Depends(usuario_actual), db=Depends(obtener_db)
 ):
-    return listar_ordenes(db, user, solo_usuario=True)
+    return listar_ordenes(db, user, solo_usuario=True, limit=limit, cursor=cursor)
 
 
 @router_admin_ordenes.get("")
 def listar_ordenes_admin(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
     user=Depends(requerir_administrador), db=Depends(obtener_db)
 ):
     liberar_transferencias_vencidas(db)
-    return listar_ordenes(db, user, solo_usuario=False)
+    return listar_ordenes(db, user, solo_usuario=False, limit=limit, cursor=cursor)
 
 
 @router_admin_ordenes.patch("/{order_id}")
