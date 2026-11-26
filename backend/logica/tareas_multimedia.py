@@ -92,7 +92,7 @@ def _ejecutar_tarea(db, tarea: dict) -> None:
     raise ValueError("UNKNOWN_MEDIA_TASK_TYPE")
 
 
-def procesar_tareas_multimedia(db, max_tasks: int = 5) -> int:
+def procesar_tareas_multimedia(db, max_tasks: int = 1) -> int:
     """Procesa una cantidad acotada de tareas después de responder al cliente."""
     completadas = 0
     tareas = db[COLECCION_TAREAS_MULTIMEDIA]
