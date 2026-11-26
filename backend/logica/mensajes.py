@@ -31,13 +31,21 @@ def inicializar_indices_mensajes(db: Any) -> None:
 
     # Migra mensajes existentes: todos los mensajes de cada conversación
     # vencen 30 días después de su actividad más reciente.
-    ultimas_actividades = coleccion.aggregate([
-        {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}}
+    conversaciones_pendientes = coleccion.aggregate([
+        {"$match": {"expiresAt": {"$exists": False}}},
+        {"$group": {"_id": "$userId"}},
     ])
-    for conversacion in ultimas_actividades:
-        ultima_actividad = conversacion.get("ultimaActividad")
+    for conversacion in conversaciones_pendientes:
         user_id = conversacion.get("_id")
-        if user_id and isinstance(ultima_actividad, datetime):
+        if not user_id:
+            continue
+        ultimo_mensaje = coleccion.find_one(
+            {"userId": user_id},
+            sort=[("createdAt", -1)],
+            projection={"createdAt": 1},
+        )
+        ultima_actividad = (ultimo_mensaje or {}).get("createdAt")
+        if isinstance(ultima_actividad, datetime):
             coleccion.update_many(
                 {"userId": user_id},
                 {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
