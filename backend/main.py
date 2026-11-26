@@ -42,7 +42,7 @@ from backend.logica.comentarios import inicializar_indices_comentarios
 from backend.logica.moderacion import inicializar_indices_moderacion
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
-from backend.logica.pagos_transferencia import inicializar_indices_cuentas_bancarias
+from backend.logica.pagos_transferencia import inicializar_indices_cuentas_bancarias, liberar_transferencias_vencidas
 from backend.logica.pagos_contraentrega import inicializar_configuracion_contraentrega
 from backend.logica.mensajes import (
     inicializar_indices_mensajes,
@@ -67,6 +67,17 @@ async def _migrar_conversaciones_en_segundo_plano(database):
             "Falló la migración de expiración de conversaciones; "
             "se reintentará en el próximo arranque."
         )
+
+
+async def _recuperar_reservas_vencidas(database):
+    while True:
+        try:
+            await asyncio.to_thread(liberar_transferencias_vencidas, database)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Falló la recuperación de reservas vencidas; se reintentará.")
+        await asyncio.sleep(60)
 
 
 def _sanitizar_evento_sentry(event, hint):
@@ -144,6 +155,9 @@ async def lifespan(application: FastAPI):
         application.state.conversation_migration_task = asyncio.create_task(
             _migrar_conversaciones_en_segundo_plano(database)
         )
+        application.state.inventory_recovery_task = asyncio.create_task(
+            _recuperar_reservas_vencidas(database)
+        )
         await iniciar_observador_eventos(database)
         logger.info("MongoDB conectado, índices y canal WebSocket inicializados.")
     except Exception as exc:
@@ -159,6 +173,10 @@ async def lifespan(application: FastAPI):
     try:
         yield
     finally:
+        recovery_task = getattr(application.state, "inventory_recovery_task", None)
+        if recovery_task is not None:
+            recovery_task.cancel()
+            await asyncio.gather(recovery_task, return_exceptions=True)
         await detener_observador_eventos()
         mongo_client.close()
 
