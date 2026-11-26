@@ -3,7 +3,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from pymongo import ASCENDING, DESCENDING
 from pymongo.collection import Collection
+
+from backend.logica.paginacion import obtener_pagina
 
 NOMBRE_COLECCION_MENSAJES = "supportMessages"
 DIAS_RETENCION_CONVERSACION = 30
@@ -20,8 +23,12 @@ def coleccion_mensajes(db: Any) -> Collection:
 def inicializar_indices_mensajes(db: Any) -> None:
     coleccion = coleccion_mensajes(db)
     coleccion.create_index(
-        [("userId", 1), ("createdAt", 1)],
-        name="idx_support_messages_user_created_at",
+        [("userId", ASCENDING), ("createdAt", ASCENDING), ("_id", ASCENDING)],
+        name="idx_support_messages_user_created_id",
+    )
+    coleccion.create_index(
+        [("createdAt", DESCENDING), ("_id", DESCENDING)],
+        name="idx_support_messages_created_id",
     )
     coleccion.create_index(
         [("expiresAt", 1)],
@@ -29,27 +36,23 @@ def inicializar_indices_mensajes(db: Any) -> None:
         name="ttl_support_messages_expires_at",
     )
 
-    # Migra mensajes existentes: todos los mensajes de cada conversación
-    # vencen 30 días después de su actividad más reciente.
-    conversaciones_pendientes = coleccion.aggregate([
-        {"$match": {"expiresAt": {"$exists": False}}},
-        {"$group": {"_id": "$userId"}},
-    ])
-    for conversacion in conversaciones_pendientes:
-        user_id = conversacion.get("_id")
-        if not user_id:
-            continue
-        ultimo_mensaje = coleccion.find_one(
-            {"userId": user_id},
-            sort=[("createdAt", -1)],
-            projection={"createdAt": 1},
+    # Migración idempotente y por cursor: solo mantiene una conversación
+    # en memoria a la vez. El cursor de agregación usa lotes acotados.
+    conversaciones = coleccion.aggregate(
+        [
+            {"$match": {"expiresAt": {"$exists": False}, "userId": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}},
+            {"$match": {"ultimaActividad": {"$type": "date"}}},
+        ],
+        allowDiskUse=True,
+    )
+    for conversacion in conversaciones.batch_size(200):
+        user_id = conversacion["_id"]
+        ultima_actividad = conversacion["ultimaActividad"]
+        coleccion.update_many(
+            {"userId": user_id, "expiresAt": {"$exists": False}},
+            {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
         )
-        ultima_actividad = (ultimo_mensaje or {}).get("createdAt")
-        if isinstance(ultima_actividad, datetime):
-            coleccion.update_many(
-                {"userId": user_id},
-                {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
-            )
 
 
 def formatear_mensaje(documento: dict) -> dict:
@@ -58,24 +61,33 @@ def formatear_mensaje(documento: dict) -> dict:
     return mensaje
 
 
-def listar_mensajes(db: Any, user: dict) -> dict:
-    user_id = str(user["_id"])
-    mensajes = (
-        coleccion_mensajes(db)
-        .find({"userId": user_id})
-        .sort("createdAt", 1)
+def listar_mensajes(
+    db: Any, user: dict, limit: int = 50, cursor: str | None = None
+) -> dict:
+    pagina = obtener_pagina(
+        coleccion_mensajes(db), {"userId": str(user["_id"])},
+        limit=limit, cursor=cursor, direccion=1,
     )
-    return {"items": [formatear_mensaje(item) for item in mensajes]}
+    return {
+        "items": [formatear_mensaje(item) for item in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
-def listar_mensajes_admin(db: Any, user_id: str | None = None) -> dict:
+def listar_mensajes_admin(
+    db: Any, user_id: str | None = None,
+    limit: int = 50, cursor: str | None = None,
+) -> dict:
     filtro = {"userId": user_id} if user_id else {}
-    mensajes = (
-        coleccion_mensajes(db)
-        .find(filtro)
-        .sort([("userId", 1), ("createdAt", 1)])
+    pagina = obtener_pagina(
+        coleccion_mensajes(db), filtro, limit=limit, cursor=cursor, direccion=-1
     )
-    return {"items": [formatear_mensaje(item) for item in mensajes]}
+    return {
+        "items": [formatear_mensaje(item) for item in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
 def _validar_texto(texto: Any) -> str:
