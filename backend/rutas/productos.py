@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from backend.modelo.productos import ProductoActualizar, ProductoCrear
 from backend.middleware.autorizacion import requerir_administrador
 from backend.rutas.autenticacion import obtener_db
+from backend.logica.tareas_multimedia import procesar_tareas_multimedia
 from backend.logica.productos import (
     actualizar_producto,
     crear_producto,
@@ -77,11 +78,22 @@ def crear_producto_admin(datos: ProductoCrear, db=Depends(obtener_db)):
 
 @router_admin_productos.patch("/{product_id}")
 def actualizar_producto_admin(
-    product_id: str, datos: ProductoActualizar, db=Depends(obtener_db)
+    product_id: str,
+    datos: ProductoActualizar,
+    background_tasks: BackgroundTasks,
+    db=Depends(obtener_db),
 ):
-    return actualizar_producto(db, product_id, datos.model_dump(exclude_unset=True))
+    resultado = actualizar_producto(db, product_id, datos.model_dump(exclude_unset=True))
+    background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
 
 
 @router_admin_productos.delete("/{product_id}")
-def eliminar_producto_admin(product_id: str, db=Depends(obtener_db)):
-    return eliminar_producto(db, product_id)
+def eliminar_producto_admin(
+    product_id: str,
+    background_tasks: BackgroundTasks,
+    db=Depends(obtener_db),
+):
+    resultado = eliminar_producto(db, product_id)
+    background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
