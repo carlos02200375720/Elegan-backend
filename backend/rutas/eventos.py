@@ -171,6 +171,11 @@ async def _servir_eventos(websocket: WebSocket, cliente: str):
         # El Change Stream compartido envía eventos a esta conexión.
         while True:
             await websocket.receive_text()
+    except asyncio.TimeoutError:
+        try:
+            await websocket.close(code=4408, reason="AUTH_TIMEOUT")
+        except Exception:
+            pass
     except WebSocketDisconnect:
         pass
     except Exception:
