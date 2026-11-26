@@ -55,7 +55,7 @@ async def _servir_eventos(websocket: WebSocket, cliente: str) -> None:
             if isinstance(credenciales, dict)
             else ""
         )
-        if not token:
+        if not token and cliente == "admin":
             await websocket.close(code=4401, reason="AUTH_REQUIRED")
             return
 
@@ -64,13 +64,15 @@ async def _servir_eventos(websocket: WebSocket, cliente: str) -> None:
             await websocket.close(code=1013, reason="DATABASE_NOT_CONFIGURED")
             return
 
-        try:
-            usuario = verificar_token(token, db, cliente)
-            if cliente == "admin":
-                validar_acceso_admin(usuario)
-        except Exception:
-            await websocket.close(code=4401, reason="INVALID_SESSION")
-            return
+        usuario = None
+        if token:
+            try:
+                usuario = verificar_token(token, db, cliente)
+                if cliente == "admin":
+                    validar_acceso_admin(usuario)
+            except Exception:
+                await websocket.close(code=4401, reason="INVALID_SESSION")
+                return
 
         pipeline = [{
             "$match": {
@@ -99,7 +101,7 @@ async def _servir_eventos(websocket: WebSocket, cliente: str) -> None:
                         # Los cambios privados solo se notifican al dueño del dato.
                         # En eliminaciones MongoDB no incluye fullDocument; se omiten
                         # para no revelar actividad de otras cuentas.
-                        if not user_id or user_id != str(usuario.get("_id")):
+                        if usuario is None or not user_id or user_id != str(usuario.get("_id")):
                             continue
 
                 clave = evento.get("documentKey") or {}
