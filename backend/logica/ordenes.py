@@ -68,29 +68,53 @@ def listar_ordenes(
 
 
 def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
-    coleccion = coleccion_ordenes(db)
-    existente = coleccion.find_one({"_id": order_id})
-    if existente is None:
-        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
-    if status != "cancelado" and existente.get("paymentMethod") == "bank_transfer" and existente.get("paymentStatus") != "verified":
-        raise HTTPException(status_code=409, detail="TRANSFER_NOT_VERIFIED")
-    if status != "cancelado" and existente.get("paymentStatus") in ("pending", "awaiting_proof", "proof_submitted", "proof_rejected"):
-        raise HTTPException(status_code=409, detail="ORDER_PAYMENT_PENDING")
+    def ejecutar(session: Any) -> dict:
+        coleccion = coleccion_ordenes(db)
+        existente = coleccion.find_one({"_id": order_id}, session=session)
+        if existente is None:
+            raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+        if status != "cancelado" and existente.get("paymentMethod") == "bank_transfer" and existente.get("paymentStatus") != "verified":
+            raise HTTPException(status_code=409, detail="TRANSFER_NOT_VERIFIED")
+        if status != "cancelado" and existente.get("paymentStatus") in ("pending", "awaiting_proof", "proof_submitted", "proof_rejected"):
+            raise HTTPException(status_code=409, detail="ORDER_PAYMENT_PENDING")
 
-    cambios = {"status": status, "updatedAt": datetime.now(timezone.utc)}
-    liberar_stock = status == "cancelado" and existente.get("inventoryReserved") is True
-    if liberar_stock or status in ("enviado", "entregado"):
-        cambios["inventoryReserved"] = False
-    resultado = coleccion.update_one({"_id": order_id}, {"$set": cambios})
-    if resultado.modified_count and liberar_stock:
-        for item in existente.get("items", []):
-            coleccion_productos = db["products"]
-            coleccion_productos.update_one(
-                {"_id": item.get("productId")},
-                {"$inc": {"stock": int(item.get("quantity", 0))}},
-            )
-    if resultado.matched_count == 0:
-        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+        now = datetime.now(timezone.utc)
+        changes = {"status": status, "updatedAt": now}
+        release_stock = status == "cancelado" and existente.get("inventoryReserved") is True
+        if release_stock:
+            changes.update({
+                "inventoryReserved": False,
+                "reservationStatus": "released",
+                "inventoryReleasedAt": now,
+            })
+        elif status in ("enviado", "entregado"):
+            changes.update({
+                "inventoryReserved": False,
+                "reservationStatus": "consumed",
+            })
 
-    orden = coleccion.find_one({"_id": order_id})
-    return formatear_orden(orden)
+        result = coleccion.update_one(
+            {"_id": order_id, "status": existente.get("status"),
+             "inventoryReserved": existente.get("inventoryReserved", False)},
+            {"$set": changes},
+            session=session,
+        )
+        if not result.modified_count:
+            raise HTTPException(status_code=409, detail="ORDER_STATE_CHANGED")
+
+        if release_stock:
+            for item in existente.get("items", []):
+                quantity = item.get("quantity")
+                if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
+                    raise HTTPException(status_code=409, detail="INVALID_ORDER_INVENTORY")
+                db["products"].update_one(
+                    {"_id": item.get("productId")},
+                    {"$inc": {"stock": quantity}},
+                    session=session,
+                )
+
+        order = coleccion.find_one({"_id": order_id}, session=session)
+        return formatear_orden(order)
+
+    with db.client.start_session() as session:
+        return session.with_transaction(ejecutar)
