@@ -12,5 +12,5 @@ def validar_importe_entero(valor: Any, *, permitir_cero: bool = True) -> int:
 def formatear_moneda(valor: Any) -> str:
     """Formatea importes enteros con punto como separador de millares."""
     if type(valor) is not int or valor < 0:
-        return "0"
+        return "$0"
     return f"${valor:,}".replace(",", ".")
