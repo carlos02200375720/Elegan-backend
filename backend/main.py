@@ -29,7 +29,7 @@ from backend.rutas.pagos_checkout import router_movil_checkout
 from backend.rutas.cupones import router_admin_cupones, router_movil_cupones
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes, router_admin_mensajes_ws
-from backend.rutas.eventos import router_eventos
+from backend.rutas.eventos import router_eventos, iniciar_observador_eventos, detener_observador_eventos
 from backend.rutas.media import router_admin_media, router_movil_media
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos import inicializar_indices_productos
@@ -119,7 +119,8 @@ async def lifespan(application: FastAPI):
 
         application.state.mongodb_client = mongo_client
         application.state.mongodb = database
-        logger.info("MongoDB conectado y todos los índices inicializados.")
+        await iniciar_observador_eventos(database)
+        logger.info("MongoDB conectado, índices y canal WebSocket inicializados.")
     except Exception as exc:
         mongo_client.close()
         logger.exception(
@@ -133,6 +134,7 @@ async def lifespan(application: FastAPI):
     try:
         yield
     finally:
+        await detener_observador_eventos()
         mongo_client.close()
 
 
