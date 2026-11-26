@@ -231,6 +231,9 @@ def _referencias_multimedia(documento: dict) -> set[str]:
         elif isinstance(valor, str) and clave in _CAMPOS_MULTIMEDIA:
             texto = valor.strip()
             if texto.startswith("https://storage.googleapis.com/"):
+                # Conserva también la URL completa por si el documento contiene
+                # parámetros de consulta; el nombre de objeto se normaliza aparte.
+                referencias.add(texto)
                 referencias.add(texto.split("?", 1)[0])
                 object_name = _object_name_desde_url(texto)
                 if object_name:
