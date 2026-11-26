@@ -2,6 +2,7 @@ import logging
 from urllib.parse import urlsplit, urlunsplit
 
 import sentry_sdk
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -43,10 +44,29 @@ from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
 from backend.logica.pagos_transferencia import inicializar_indices_cuentas_bancarias
 from backend.logica.pagos_contraentrega import inicializar_configuracion_contraentrega
-from backend.logica.mensajes import inicializar_indices_mensajes
+from backend.logica.mensajes import (
+    inicializar_indices_mensajes,
+    migrar_conversaciones_sin_expiracion,
+)
 from backend.logica.autenticacion import inicializar_super_admin
 
 logger = logging.getLogger("elegan")
+
+
+async def _migrar_conversaciones_en_segundo_plano(database):
+    try:
+        cantidad = await asyncio.to_thread(
+            migrar_conversaciones_sin_expiracion, database
+        )
+        logger.info(
+            "Migración de expiración de conversaciones terminada: %s conversaciones.",
+            cantidad,
+        )
+    except Exception:
+        logger.exception(
+            "Falló la migración de expiración de conversaciones; "
+            "se reintentará en el próximo arranque."
+        )
 
 
 def _sanitizar_evento_sentry(event, hint):
@@ -119,6 +139,9 @@ async def lifespan(application: FastAPI):
 
         application.state.mongodb_client = mongo_client
         application.state.mongodb = database
+        application.state.conversation_migration_task = asyncio.create_task(
+            _migrar_conversaciones_en_segundo_plano(database)
+        )
         await iniciar_observador_eventos(database)
         logger.info("MongoDB conectado, índices y canal WebSocket inicializados.")
     except Exception as exc:
