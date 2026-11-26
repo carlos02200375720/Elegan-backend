@@ -11,6 +11,7 @@ from urllib.parse import quote
 from fastapi import HTTPException, UploadFile
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.cloud import storage
+from pymongo.errors import PyMongoError
 
 from backend.configuracion import settings
 
@@ -244,40 +245,57 @@ def _object_name_desde_url(url: str) -> str | None:
 
 
 def eliminar_medios_sin_referencias(db, documentos: list[dict]) -> None:
-    """Elimina de GCS solo medios propios del bucket que ya no usa ningún documento."""
+    """Verifica referencias con consultas acotadas, sin materializar colecciones."""
     candidatos: set[str] = set()
     for documento in documentos:
         candidatos.update(_referencias_multimedia(documento))
-
     if not candidatos:
         return
 
-    referencias_actuales: set[str] = set()
-    # Se revisan todas las colecciones para proteger los medios compartidos.
-    for nombre_coleccion in db.list_collection_names():
-        for documento in db[nombre_coleccion].find({}):
-            referencias_actuales.update(_referencias_multimedia(documento))
+    urls = [item for item in candidatos if not item.startswith("object:")]
+    nombres = [item[len("object:"):] for item in candidatos if item.startswith("object:")]
+    campos_url = (
+        "imageUrl", "videoUrl", "videoPoster", "url", "mediaUrl", "mediaUrls",
+        "images.url", "media.url", "files.url",
+    )
+    campos_objeto = (
+        "objectName", "images.objectName", "media.objectName", "files.objectName",
+    )
+    condiciones = []
+    if urls:
+        condiciones.extend({campo: {"$in": urls}} for campo in campos_url)
+    if nombres:
+        condiciones.extend({campo: {"$in": nombres}} for campo in campos_objeto)
+    consulta = {"$or": condiciones}
 
-    obsoletos = candidatos - referencias_actuales
-    nombres_objeto = {
-        referencia[len("object:"):] if referencia.startswith("object:") else
-        (_object_name_desde_url(referencia) or "")
-        for referencia in obsoletos
-    }
-    nombres_objeto.discard("")
-    if not nombres_objeto:
-        return
-
+    # find_one solo obtiene el primer uso. Ante timeout/error se conserva el
+    # archivo: es preferible dejar un huérfano a borrar un medio compartido.
     try:
+        for nombre_coleccion in db.list_collection_names():
+            try:
+                referencia = db[nombre_coleccion].find_one(
+                    consulta, projection={"_id": 1}, max_time_ms=750
+                )
+            except PyMongoError:
+                return
+            if referencia is not None:
+                return
+
+        nombres_objeto = {
+            item[len("object:"):] if item.startswith("object:") else
+            (_object_name_desde_url(item) or "")
+            for item in candidatos
+        }
+        nombres_objeto.discard("")
+        if not nombres_objeto:
+            return
         bucket = storage.Client().bucket(settings.gcs_bucket_name)
         for nombre_objeto in nombres_objeto:
-            # Los uploads de esta API se guardan bajo estos prefijos.
-            if not (nombre_objeto.startswith("movil/") or nombre_objeto.startswith("admin/") or nombre_objeto.startswith("soporte/")):
+            if not nombre_objeto.startswith(("movil/", "admin/", "soporte/")):
                 continue
             try:
                 bucket.blob(nombre_objeto).delete()
             except NotFound:
-                # El objeto ya no existe; la limpieza ya está satisfecha.
                 continue
     except GoogleAPIError as error:
         raise HTTPException(
