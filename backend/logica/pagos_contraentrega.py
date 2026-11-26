@@ -9,8 +9,8 @@ CONFIG_COD_ID = "configuracion"
 COD_DEFAULT_MESSAGE = "Paga tu pedido cuando lo recibas. Verifica los productos y confirma la recepción al momento de la entrega."
 
 
-def preparar_pago_contraentrega(db: Any, data: dict, now: datetime) -> dict:
-    if not obtener_configuracion_contraentrega(db)["enabled"]:
+def preparar_pago_contraentrega(db: Any, data: dict, now: datetime, session: Any = None) -> dict:
+    if not obtener_configuracion_contraentrega(db, session=session)["enabled"]:
         raise HTTPException(status_code=409, detail="COD_DISABLED")
     if (
         data.get("cashOnDeliveryAccepted") is not True
@@ -18,13 +18,9 @@ def preparar_pago_contraentrega(db: Any, data: dict, now: datetime) -> dict:
     ):
         raise HTTPException(status_code=400, detail="COD_TERMS_NOT_ACCEPTED")
     return {
-        "paymentStatus": "cash_on_delivery",
-        "status": "pendiente_confirmacion",
-        "cashOnDeliveryAccepted": True,
-        "cashOnDeliveryTermsVersion": COD_TERMS_VERSION,
-        "cashOnDeliveryAcceptedAt": now,
-        "expiresAt": None,
-        "bankAccount": None,
+        "paymentStatus": "cash_on_delivery", "status": "pendiente_confirmacion",
+        "cashOnDeliveryAccepted": True, "cashOnDeliveryTermsVersion": COD_TERMS_VERSION,
+        "cashOnDeliveryAcceptedAt": now, "expiresAt": None, "bankAccount": None,
     }
 
 
@@ -34,24 +30,17 @@ def validar_producto_para_contraentrega(product: dict) -> None:
 
 
 def inicializar_configuracion_contraentrega(db: Any) -> None:
-    """Crea la configuración COD independiente con valores predeterminados."""
     now = datetime.now(timezone.utc)
     db[CONFIG_COD].update_one(
         {"_id": CONFIG_COD_ID},
-        {
-            "$setOnInsert": {
-                "enabled": True,
-                "message": COD_DEFAULT_MESSAGE,
-                "createdAt": now,
-                "updatedAt": now,
-            }
-        },
+        {"$setOnInsert": {"enabled": True, "message": COD_DEFAULT_MESSAGE,
+                          "createdAt": now, "updatedAt": now}},
         upsert=True,
     )
 
 
-def obtener_configuracion_contraentrega(db: Any) -> dict:
-    config = db[CONFIG_COD].find_one({"_id": CONFIG_COD_ID}) or {}
+def obtener_configuracion_contraentrega(db: Any, session: Any = None) -> dict:
+    config = db[CONFIG_COD].find_one({"_id": CONFIG_COD_ID}, session=session) or {}
     return {
         "enabled": bool(config.get("enabled", True)),
         "message": str(config.get("message") or COD_DEFAULT_MESSAGE),
@@ -60,8 +49,7 @@ def obtener_configuracion_contraentrega(db: Any) -> dict:
 
 
 def actualizar_configuracion_contraentrega(db: Any, data: dict) -> dict:
-    enabled = data.get("enabled")
-    message = data.get("message")
+    enabled, message = data.get("enabled"), data.get("message")
     if not isinstance(enabled, bool):
         raise HTTPException(status_code=400, detail="COD_ENABLED_BOOLEAN_REQUIRED")
     if not isinstance(message, str) or not message.strip():
@@ -74,5 +62,3 @@ def actualizar_configuracion_contraentrega(db: Any, data: dict) -> dict:
         upsert=True,
     )
     return obtener_configuracion_contraentrega(db)
-
-
