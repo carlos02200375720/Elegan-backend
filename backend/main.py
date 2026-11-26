@@ -29,6 +29,7 @@ from backend.rutas.pagos_checkout import router_movil_checkout
 from backend.rutas.cupones import router_admin_cupones, router_movil_cupones
 from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes, router_admin_mensajes_ws
+from backend.rutas.eventos import router_eventos
 from backend.rutas.media import router_admin_media, router_movil_media
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos import inicializar_indices_productos
@@ -184,6 +185,7 @@ app.include_router(router_admin_usuario)
 app.include_router(router_movil_mensajes)
 app.include_router(router_admin_mensajes)
 app.include_router(router_admin_mensajes_ws)
+app.include_router(router_eventos)
 app.include_router(router_movil_media)
 app.include_router(router_admin_media)
 
