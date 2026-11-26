@@ -137,7 +137,8 @@ async def detener_observador_eventos():
 async def _servir_eventos(websocket: WebSocket, cliente: str):
     await websocket.accept()
     try:
-        credenciales = await websocket.receive_json()
+        # Evita mantener sockets abiertos indefinidamente sin completar autenticación.
+        credenciales = await asyncio.wait_for(websocket.receive_json(), timeout=10)
         token = (
             str(credenciales.get("token") or "").strip()
             if isinstance(credenciales, dict)
@@ -164,6 +165,9 @@ async def _servir_eventos(websocket: WebSocket, cliente: str):
                 return
 
         _hub.register(websocket, cliente, user_id)
+        # Confirma que la sesión fue validada; el cliente usa esta señal para
+        # resincronizar datos y recuperar eventos perdidos durante desconexiones.
+        await websocket.send_json({"type": "connected"})
         # El Change Stream compartido envía eventos a esta conexión.
         while True:
             await websocket.receive_text()
