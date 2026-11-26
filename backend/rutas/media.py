@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from backend.middleware.autorizacion import requerir_administrador
-from backend.rutas.autenticacion import usuario_actual
+from backend.rutas.autenticacion import obtener_db, usuario_actual
+from backend.logica.tareas_multimedia import procesar_tareas_multimedia
 from backend.logica.media import guardar_multimedia
 
 
@@ -23,26 +24,41 @@ def _verificar_admin_movil(user=Depends(usuario_actual)):
 
 @router_movil_media.post("", status_code=201)
 def subir_multimedia_movil(
+    background_tasks: BackgroundTasks,
     archivo: UploadFile = File(..., alias="file"),
     nombre: str | None = Form(default=None, alias="name"),
     _user=Depends(_verificar_admin_movil),
+    db=Depends(obtener_db),
 ):
-    return guardar_multimedia(archivo, nombre, "movil")
+    resultado = guardar_multimedia(archivo, nombre, "movil", db=db)
+    if resultado.get("processingTaskId"):
+        background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
 
 
 @router_admin_media.post("", status_code=201)
 def subir_multimedia_admin(
+    background_tasks: BackgroundTasks,
     archivo: UploadFile = File(..., alias="file"),
     nombre: str | None = Form(default=None, alias="name"),
+    db=Depends(obtener_db),
 ):
-    return guardar_multimedia(archivo, nombre, "admin")
+    resultado = guardar_multimedia(archivo, nombre, "admin", db=db)
+    if resultado.get("processingTaskId"):
+        background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
 
 
 @router_movil_media.post("/support", status_code=201)
 def subir_adjunto_soporte(
+    background_tasks: BackgroundTasks,
     archivo: UploadFile = File(..., alias="file"),
     nombre: str | None = Form(default=None, alias="name"),
     _user=Depends(usuario_actual),
+    db=Depends(obtener_db),
 ):
     """Permite a cualquier cliente autenticado adjuntar fotos/videos al chat de soporte."""
-    return guardar_multimedia(archivo, nombre, "soporte")
+    resultado = guardar_multimedia(archivo, nombre, "soporte", db=db)
+    if resultado.get("processingTaskId"):
+        background_tasks.add_task(procesar_tareas_multimedia, db)
+    return resultado
