@@ -119,9 +119,11 @@ def recomendar_productos(db: Any, product_id: str, limit: int = 12) -> dict:
     if producto_base is None:
         raise HTTPException(status_code=404, detail="PRODUCT_NOT_FOUND")
 
+    # Ventana acotada: no descargar el catálogo completo para recomendar.
     candidatos = list(
         coleccion.find({"isActive": True, "_id": {"$ne": product_id}})
-        .sort("createdAt", DESCENDING)
+        .sort([("createdAt", DESCENDING), ("_id", DESCENDING)])
+        .limit(500)
     )
     # El sort de Mongo prioriza los más recientes en empates sin comparar
     # tipos de fecha distintos que puedan existir en documentos históricos.
