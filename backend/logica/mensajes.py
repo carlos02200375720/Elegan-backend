@@ -141,9 +141,15 @@ def migrar_conversaciones_sin_expiracion(db: Any, batch_size: int = 200) -> int:
     coleccion = coleccion_mensajes(db)
     conversaciones = coleccion.aggregate(
         [
-            {"$match": {"expiresAt": {"$exists": False}, "userId": {"$type": "string", "$ne": ""}}},
-            {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}},
-            {"$match": {"ultimaActividad": {"$type": "date"}}},
+            {"$match": {"userId": {"$type": "string", "$ne": ""}}},
+            {"$group": {
+                "_id": "$userId",
+                "ultimaActividad": {"$max": "$createdAt"},
+                "pendientes": {"$sum": {"$cond": [
+                    {"$eq": [{"$type": "$expiresAt"}, "missing"]}, 1, 0
+                ]}},
+            }},
+            {"$match": {"pendientes": {"$gt": 0}, "ultimaActividad": {"$type": "date"}}},
         ],
         allowDiskUse=True,
     ).batch_size(batch_size)
