@@ -50,6 +50,7 @@ from backend.logica.mensajes import (
     migrar_conversaciones_sin_expiracion,
 )
 from backend.logica.autenticacion import inicializar_super_admin
+from backend.logica.tareas_multimedia import inicializar_indices_tareas_multimedia
 
 logger = logging.getLogger("elegan")
 
@@ -151,6 +152,7 @@ async def lifespan(application: FastAPI):
         inicializar_indices_cuentas_bancarias(database)
         inicializar_configuracion_contraentrega(database)
         inicializar_indices_mensajes(database)
+        inicializar_indices_tareas_multimedia(database)
 
         application.state.mongodb_client = mongo_client
         application.state.mongodb = database
