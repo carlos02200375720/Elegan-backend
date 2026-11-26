@@ -8,6 +8,8 @@ from backend.logica.moneda import formatear_moneda
 from pymongo import DESCENDING
 from pymongo.collection import Collection
 
+from backend.logica.paginacion import obtener_pagina
+
 NOMBRE_COLECCION_ORDENES = "orders"
 NOMBRE_COLECCION_CARRITO = "cart"
 
@@ -50,10 +52,19 @@ def formatear_orden(documento: dict) -> dict:
     return orden
 
 
-def listar_ordenes(db: Any, user: dict, solo_usuario: bool) -> dict:
+def listar_ordenes(
+    db: Any, user: dict, solo_usuario: bool,
+    limit: int = 50, cursor: str | None = None,
+) -> dict:
     filtro = {"userId": str(user["_id"])} if solo_usuario else {}
-    filas = coleccion_ordenes(db).find(filtro).sort("createdAt", DESCENDING)
-    return {"items": [formatear_orden(fila) for fila in filas]}
+    pagina = obtener_pagina(
+        coleccion_ordenes(db), filtro, limit=limit, cursor=cursor, direccion=-1
+    )
+    return {
+        "items": [formatear_orden(fila) for fila in pagina["documents"]],
+        "hasMore": pagina["hasMore"],
+        "nextCursor": pagina["nextCursor"],
+    }
 
 
 def actualizar_estado_orden(db: Any, order_id: str, status: str) -> dict:
