@@ -121,8 +121,10 @@ async def lifespan(application: FastAPI):
         inicializar_super_admin(database)
 
         anuncios = database["announcements"]
-        anuncios.create_index("isActive")
-        anuncios.create_index([("createdAt", DESCENDING)])
+        anuncios.create_index(
+            [("isActive", 1), ("createdAt", DESCENDING), ("_id", DESCENDING)],
+            name="idx_announcements_active_created_id",
+        )
         inicializar_indices_productos(database)
         inicializar_indices_categorias(database)
         inicializar_indices_guardadas(database)
