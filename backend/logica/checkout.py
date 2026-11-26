@@ -17,6 +17,15 @@ PRODUCTOS = "products"
 IDEMPOTENCIA = "checkout_idempotency"
 
 
+def inicializar_indices_checkout(db: Any) -> None:
+    # Se crea antes de iniciar transacciones; evita crear una colección nueva
+    # dentro de una transacción distribuida entre shards.
+    db[IDEMPOTENCIA].create_index(
+        [("userId", 1), ("createdAt", -1)],
+        name="idx_checkout_idempotency_user_created",
+    )
+
+
 def _money(value: Any, *, allow_zero: bool = False) -> int:
     try:
         return validar_importe_entero(value, permitir_cero=allow_zero)
