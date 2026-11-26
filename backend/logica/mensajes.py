@@ -1,3 +1,5 @@
+import base64
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -62,10 +64,48 @@ def listar_mensajes_admin(
     db: Any, user_id: str | None = None,
     limit: int = 50, cursor: str | None = None,
 ) -> dict:
-    filtro = {"userId": user_id} if user_id else {}
-    pagina = obtener_pagina(
-        coleccion_mensajes(db), filtro, limit=limit, cursor=cursor, direccion=-1
-    )
+    coleccion = coleccion_mensajes(db)
+    if user_id:
+        pagina = obtener_pagina(
+            coleccion, {"userId": user_id},
+            limit=limit, cursor=cursor, direccion=1,
+        )
+    else:
+        # Conserva el orden histórico del panel: agrupa por cliente y ordena
+        # cronológicamente dentro de cada conversación.
+        limite = min(100, max(1, int(limit)))
+        filtro = {}
+        if cursor:
+            try:
+                raw = base64.urlsafe_b64decode(cursor.encode("ascii") + b"===")
+                posicion = json.loads(raw.decode("utf-8"))
+                fecha = datetime.fromisoformat(posicion["createdAt"])
+                user_cursor = str(posicion["userId"])
+                id_cursor = str(posicion["id"])
+                filtro = {"$or": [
+                    {"userId": {"$gt": user_cursor}},
+                    {"userId": user_cursor, "createdAt": {"$gt": fecha}},
+                    {"userId": user_cursor, "createdAt": fecha, "_id": {"$gt": id_cursor}},
+                ]}
+            except (ValueError, KeyError, TypeError, UnicodeError):
+                raise HTTPException(status_code=400, detail="INVALID_PAGE_CURSOR")
+        filas = list(
+            coleccion.find(filtro)
+            .sort([("userId", 1), ("createdAt", 1), ("_id", 1)])
+            .limit(limite + 1)
+        )
+        hay_mas = len(filas) > limite
+        documentos = filas[:limite]
+        siguiente = None
+        if hay_mas and documentos:
+            ultimo = documentos[-1]
+            token = json.dumps({
+                "userId": str(ultimo.get("userId") or ""),
+                "createdAt": ultimo["createdAt"].isoformat(),
+                "id": str(ultimo["_id"]),
+            }, separators=(",", ":")).encode("utf-8")
+            siguiente = base64.urlsafe_b64encode(token).decode("ascii").rstrip("=")
+        pagina = {"documents": documentos, "hasMore": hay_mas, "nextCursor": siguiente}
     return {
         "items": [formatear_mensaje(item) for item in pagina["documents"]],
         "hasMore": pagina["hasMore"],
