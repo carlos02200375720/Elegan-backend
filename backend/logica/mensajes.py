@@ -36,23 +36,6 @@ def inicializar_indices_mensajes(db: Any) -> None:
         name="ttl_support_messages_expires_at",
     )
 
-    # Migración idempotente y por cursor: solo mantiene una conversación
-    # en memoria a la vez. El cursor de agregación usa lotes acotados.
-    conversaciones = coleccion.aggregate(
-        [
-            {"$match": {"expiresAt": {"$exists": False}, "userId": {"$type": "string", "$ne": ""}}},
-            {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}},
-            {"$match": {"ultimaActividad": {"$type": "date"}}},
-        ],
-        allowDiskUse=True,
-    )
-    for conversacion in conversaciones.batch_size(200):
-        user_id = conversacion["_id"]
-        ultima_actividad = conversacion["ultimaActividad"]
-        coleccion.update_many(
-            {"userId": user_id, "expiresAt": {"$exists": False}},
-            {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
-        )
 
 
 def formatear_mensaje(documento: dict) -> dict:
@@ -151,3 +134,24 @@ def responder_mensaje_admin(
     mensaje["expiresAt"] = expiracion
     coleccion.insert_one(mensaje)
     return {"id": mensaje_id}
+
+
+def migrar_conversaciones_sin_expiracion(db: Any, batch_size: int = 200) -> int:
+    """Migra conversaciones antiguas en streaming, fuera del arranque HTTP."""
+    coleccion = coleccion_mensajes(db)
+    conversaciones = coleccion.aggregate(
+        [
+            {"$match": {"expiresAt": {"$exists": False}, "userId": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}},
+            {"$match": {"ultimaActividad": {"$type": "date"}}},
+        ],
+        allowDiskUse=True,
+    ).batch_size(batch_size)
+    procesadas = 0
+    for conversacion in conversaciones:
+        coleccion.update_many(
+            {"userId": conversacion["_id"], "expiresAt": {"$exists": False}},
+            {"$set": {"expiresAt": _fecha_expiracion(conversacion["ultimaActividad"])}},
+        )
+        procesadas += 1
+    return procesadas
