@@ -28,6 +28,7 @@ COLECCIONES_EVENTOS = {
     "cash_on_delivery",
     "cashOnDelivery",
     "blocked_users",
+    "comment_reports",
     "reported_comments",
     "usuarios",
     "super-admins",
@@ -42,6 +43,10 @@ COLECCIONES_PUBLICAS_MOVIL = {
     "bankAccounts",
     "cash_on_delivery",
     "cashOnDelivery",
+    "comments",
+    "likes",
+    "guardadas",
+    "publication_shares",
 }
 
 
