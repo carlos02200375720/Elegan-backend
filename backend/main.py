@@ -43,6 +43,7 @@ from backend.logica.moderacion import inicializar_indices_moderacion
 from backend.logica.ordenes import inicializar_indices_ordenes
 from backend.logica.cupones import inicializar_indices_cupones
 from backend.logica.pagos_transferencia import inicializar_indices_cuentas_bancarias, liberar_transferencias_vencidas
+from backend.logica.checkout import inicializar_indices_checkout
 from backend.logica.pagos_contraentrega import inicializar_configuracion_contraentrega
 from backend.logica.mensajes import (
     inicializar_indices_mensajes,
@@ -145,6 +146,7 @@ async def lifespan(application: FastAPI):
         inicializar_indices_moderacion(database)
         inicializar_indices_carrito(database)
         inicializar_indices_ordenes(database)
+        inicializar_indices_checkout(database)
         inicializar_indices_cupones(database)
         inicializar_indices_cuentas_bancarias(database)
         inicializar_configuracion_contraentrega(database)
@@ -194,7 +196,7 @@ if settings.cors_origins_list:
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
     )
 
 app.include_router(router_movil)
