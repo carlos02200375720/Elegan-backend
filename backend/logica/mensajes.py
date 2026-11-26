@@ -1,11 +1,16 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
 from pymongo.collection import Collection
 
 NOMBRE_COLECCION_MENSAJES = "supportMessages"
+DIAS_RETENCION_CONVERSACION = 30
+
+
+def _fecha_expiracion(ahora: datetime) -> datetime:
+    return ahora + timedelta(days=DIAS_RETENCION_CONVERSACION)
 
 
 def coleccion_mensajes(db: Any) -> Collection:
@@ -13,10 +18,30 @@ def coleccion_mensajes(db: Any) -> Collection:
 
 
 def inicializar_indices_mensajes(db: Any) -> None:
-    coleccion_mensajes(db).create_index(
+    coleccion = coleccion_mensajes(db)
+    coleccion.create_index(
         [("userId", 1), ("createdAt", 1)],
         name="idx_support_messages_user_created_at",
     )
+    coleccion.create_index(
+        [("expiresAt", 1)],
+        expireAfterSeconds=0,
+        name="ttl_support_messages_expires_at",
+    )
+
+    # Migra mensajes existentes: todos los mensajes de cada conversación
+    # vencen 30 días después de su actividad más reciente.
+    ultimas_actividades = coleccion.aggregate([
+        {"$group": {"_id": "$userId", "ultimaActividad": {"$max": "$createdAt"}}}
+    ])
+    for conversacion in ultimas_actividades:
+        ultima_actividad = conversacion.get("ultimaActividad")
+        user_id = conversacion.get("_id")
+        if user_id and isinstance(ultima_actividad, datetime):
+            coleccion.update_many(
+                {"userId": user_id},
+                {"$set": {"expiresAt": _fecha_expiracion(ultima_actividad)}},
+            )
 
 
 def formatear_mensaje(documento: dict) -> dict:
@@ -66,6 +91,13 @@ def crear_mensaje(db: Any, user: dict, datos: dict) -> dict:
         "createdAt": ahora,
     }
     coleccion = coleccion_mensajes(db)
+    expiracion = _fecha_expiracion(ahora)
+    # Renovar la fecha de expiración de toda la conversación con cada mensaje.
+    coleccion.update_many(
+        {"userId": user_id},
+        {"$set": {"expiresAt": expiracion}},
+    )
+    mensaje["expiresAt"] = expiracion
     coleccion.insert_one(mensaje)
 
     return {"id": mensaje_id}
@@ -88,5 +120,14 @@ def responder_mensaje_admin(
         "text": texto,
         "createdAt": datetime.now(timezone.utc),
     }
-    coleccion_mensajes(db).insert_one(mensaje)
+    coleccion = coleccion_mensajes(db)
+    ahora = mensaje["createdAt"]
+    expiracion = _fecha_expiracion(ahora)
+    # Un mensaje nuevo de soporte también renueva los 30 días de la conversación.
+    coleccion.update_many(
+        {"userId": user_id},
+        {"$set": {"expiresAt": expiracion}},
+    )
+    mensaje["expiresAt"] = expiracion
+    coleccion.insert_one(mensaje)
     return {"id": mensaje_id}
