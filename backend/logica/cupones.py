@@ -94,11 +94,11 @@ def eliminar_cupon(db: Any, codigo: str) -> dict:
     return {"success": True}
 
 
-def calcular_descuento_cupon(db: Any, codigo: str, subtotal: int) -> tuple[dict, int]:
+def calcular_descuento_cupon(db: Any, codigo: str, subtotal: int, session: Any = None) -> tuple[dict, int]:
     codigo = str(codigo or "").strip().upper()
     if not codigo:
         raise HTTPException(status_code=400, detail="COUPON_CODE_REQUIRED")
-    cupon = db[COLECCION_CUPONES].find_one({"_id": codigo, "isActive": True})
+    cupon = db[COLECCION_CUPONES].find_one({"_id": codigo, "isActive": True}, session=session)
     if cupon is None:
         raise HTTPException(status_code=404, detail="COUPON_INVALID_OR_INACTIVE")
     tipo = cupon.get("discountType")
