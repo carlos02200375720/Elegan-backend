@@ -69,6 +69,14 @@ class _RealtimeHub:
                         max_await_time_ms=1000,
                     )
                 )
+                # Si MongoDB interrumpió el Change Stream y este se reabrió,
+                # los clientes deben consultar de nuevo su estado para recuperar
+                # cualquier cambio que haya ocurrido durante la interrupción.
+                for websocket in list(self._clients):
+                    try:
+                        await websocket.send_json({"type": "connected"})
+                    except Exception:
+                        self.unregister(websocket)
                 last_heartbeat = asyncio.get_running_loop().time()
                 while True:
                     event = await asyncio.to_thread(cursor.try_next)
