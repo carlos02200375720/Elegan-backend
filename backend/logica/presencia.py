@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING
 
 COLECCION_PRESENCIA = "user_presence"
 VENTANA_ACTIVO_SEGUNDOS = 120
@@ -9,10 +9,6 @@ RETENCION_SEGUNDOS = 30 * 24 * 60 * 60
 
 def inicializar_indices_presencia(db) -> None:
     presencia = db[COLECCION_PRESENCIA]
-    presencia.create_index(
-        [("lastSeen", DESCENDING)],
-        name="idx_user_presence_last_seen",
-    )
     presencia.create_index(
         [("lastSeen", ASCENDING)],
         expireAfterSeconds=RETENCION_SEGUNDOS,
