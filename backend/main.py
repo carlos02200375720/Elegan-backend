@@ -32,6 +32,7 @@ from backend.rutas.usuario import router_admin_usuario, router_movil_usuario
 from backend.rutas.mensajes import router_admin_mensajes, router_movil_mensajes
 from backend.rutas.eventos import router_eventos, iniciar_observador_eventos, detener_observador_eventos
 from backend.rutas.media import router_admin_media, router_movil_media
+from backend.rutas.presencia import router_admin_presencia, router_movil_presencia
 from backend.logica.carrito import inicializar_indices_carrito
 from backend.logica.productos import inicializar_indices_productos
 from backend.logica.categorias import inicializar_indices_categorias
@@ -51,6 +52,7 @@ from backend.logica.mensajes import (
 )
 from backend.logica.autenticacion import inicializar_super_admin
 from backend.logica.tareas_multimedia import inicializar_indices_tareas_multimedia
+from backend.logica.presencia import inicializar_indices_presencia
 
 logger = logging.getLogger("elegan")
 
@@ -153,6 +155,7 @@ async def lifespan(application: FastAPI):
         inicializar_configuracion_contraentrega(database)
         inicializar_indices_mensajes(database)
         inicializar_indices_tareas_multimedia(database)
+        inicializar_indices_presencia(database)
 
         application.state.mongodb_client = mongo_client
         application.state.mongodb = database
@@ -236,6 +239,8 @@ app.include_router(router_admin_mensajes)
 app.include_router(router_eventos)
 app.include_router(router_movil_media)
 app.include_router(router_admin_media)
+app.include_router(router_movil_presencia)
+app.include_router(router_admin_presencia)
 
 
 @app.get("/", tags=["Sistema"])
